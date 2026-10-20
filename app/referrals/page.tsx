@@ -1,19 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import {
-  Coins01Icon,
-  Copy01Icon,
-  MoneyReceive01Icon,
-  NewTwitterIcon,
-  PercentCircleIcon,
-  Share08Icon,
-  TelegramIcon,
-  Ticket01Icon,
-  Tick02Icon,
-  UserAdd01Icon,
-  UserMultipleIcon,
-} from "@hugeicons/core-free-icons";
+import { Copy01Icon, MoneyReceive01Icon, NewTwitterIcon, PercentCircleIcon, TelegramIcon, Ticket01Icon, Tick02Icon, UserMultipleIcon } from "@hugeicons/core-free-icons";
 import { useQuery } from "@tanstack/react-query";
 import { API } from "@/lib/api/client";
 import { BOT_USERNAME, MINI_APP_SHORT_NAME } from "@/lib/env";
@@ -24,18 +12,19 @@ import { haptic, openExternal } from "@/lib/telegram";
 import { Button } from "@/components/ui/button";
 import { copyText } from "@/components/ui/controls";
 import { Icon } from "@/components/ui/icon";
-import { Amount, Card, EmptyState, ErrorState, ListSkeleton, Notice, Page, PageHeader, Pill, Skeleton } from "@/components/ui/primitives";
+import { Amount, Card, EmptyState, ErrorState, FlowHeader, ListSkeleton, Page, Pill, Skeleton } from "@/components/ui/primitives";
 
 // Shared by the Telegram and X buttons; the invite link is appended by each network. No profit promises.
 const INVITE_TEXT =
-  "I'm trying TradeXai: AI trading agents that run on your USDT, right inside Telegram. Pick an agent, choose how much it can use and watch every trade live. Join with my invite:";
+  "I'm trying TradeXai: an AI trading agent for your USDT, right inside Telegram. New accounts start with a Trial fund, and every trade is shown live. Join with my invite:";
 
 export default function ReferralsPage() {
   const q = useReferrals();
 
   return (
-    <Page>
-      <PageHeader title="Invite friends" subtitle="Earn from friends' trading fees" />
+    // reached from the Wallet tab, so it's a focused page with Back
+    <Page nav={false}>
+      <FlowHeader title="Invite friends" />
       {q.isPending ? (
         <div className="flex flex-col gap-3">
           <Skeleton className="h-52 rounded-xl" />
@@ -101,34 +90,10 @@ function Content({ code, users, earned, shareBps }: { code: string; users: numbe
             </Button>
           </div>
         )}
-      </Card>
-
-      <Card className="p-4">
-        <h2 className="text-body-sm font-semibold">How you earn</h2>
-        <ol className="mt-3 grid grid-cols-3 gap-2">
-          {(
-            [
-              [Share08Icon, "Share your link"],
-              [UserAdd01Icon, "Friend trades"],
-              [Coins01Icon, `You earn ${percent}% of fees`],
-            ] as const
-          ).map(([icon, text], i) => (
-            <li key={text} className="flex flex-col items-center gap-2 text-center">
-              <span className="relative grid size-10 place-items-center rounded-full bg-surface-raised">
-                <Icon icon={icon} size={18} />
-                <span className="absolute -right-1 -top-1 grid size-4.5 place-items-center rounded-full bg-foreground text-[10px] font-bold text-background">{i + 1}</span>
-              </span>
-              <span className="text-caption leading-tight text-muted-foreground">{text}</span>
-            </li>
-          ))}
-        </ol>
-        <p className="mt-3 border-t border-border pt-3 text-caption text-muted-foreground">
-          No extra cost to your friend.
-        </p>
+        <p className="mt-3 text-caption text-muted-foreground">New users only. No extra cost to your friend.</p>
       </Card>
 
       <RecentReferrals />
-      <Notice tone="info">New users only.</Notice>
     </div>
   );
 }

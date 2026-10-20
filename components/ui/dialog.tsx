@@ -27,7 +27,8 @@ function DialogContent({ className, children, ...props }: React.ComponentProps<t
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-[400px] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-surface p-6 shadow-[0_24px_64px_-24px_rgb(0_0_0/0.6)] outline-none duration-200",
+          // grid-cols-1 is minmax(0, 1fr): without it a wide child (an input's intrinsic width) stretches the dialog off-screen
+          "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-[400px] grid-cols-1 -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-surface p-6 shadow-[0_24px_64px_-24px_rgb(0_0_0/0.6)] outline-none duration-200",
           "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-97 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-97",
           className,
         )}
@@ -47,7 +48,9 @@ function DialogDescription({ className, ...props }: React.ComponentProps<typeof 
   return <DialogPrimitive.Description data-slot="dialog-description" className={cn("text-body-sm text-muted-foreground", className)} {...props} />;
 }
 
-export { Dialog, DialogContent, DialogDescription, DialogOverlay, DialogTitle };
+const DialogClose = DialogPrimitive.Close;
+
+export { Dialog, DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogTitle };
 
 /**
  * Critical / destructive decision (design.md §8.6, L3). Outside taps never dismiss it, so a

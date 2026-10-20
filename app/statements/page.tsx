@@ -1,21 +1,16 @@
 "use client";
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { motion } from "motion/react";
-import { ChartCandlestickIcon, DashboardSquare01Icon, MoneyExchange01Icon, PauseIcon, PlayIcon } from "@hugeicons/core-free-icons";
-import type { AgentInstance, Range } from "@/lib/api/types";
-import { pick } from "@/lib/format";
-import { instanceStatus, INSTANCE_FINAL } from "@/lib/labels";
-import { useInstances, useStatement } from "@/lib/queries";
+import { ChartCandlestickIcon, DashboardSquare01Icon, MoneyExchange01Icon } from "@hugeicons/core-free-icons";
+import type { Range } from "@/lib/api/types";
+import { useStatement } from "@/lib/queries";
 import { haptic } from "@/lib/telegram";
-import { useInstanceControl } from "@/components/agents/shared";
 import { Funding } from "@/components/statement/funding";
 import { Overview } from "@/components/statement/overview";
 import { Trades } from "@/components/statement/trades";
-import { Button } from "@/components/ui/button";
-import { Chip, Segmented } from "@/components/ui/controls";
+import { Segmented } from "@/components/ui/controls";
 import { Icon } from "@/components/ui/icon";
-import { Card, ErrorState, Page, PageHeader, Pill, SectionTitle, Skeleton } from "@/components/ui/primitives";
+import { ErrorState, Page, PageHeader, Skeleton } from "@/components/ui/primitives";
 
 const RANGES: { value: Range; label: string }[] = [
   { value: "7d", label: "7D" },
@@ -30,41 +25,16 @@ const TABS: { value: Tab; label: string; icon: Parameters<typeof Icon>[0]["icon"
   { value: "funding", label: "Funding", icon: MoneyExchange01Icon },
 ];
 
-export default function Route() {
-  return (
-    <Suspense>
-      <StatementsPage />
-    </Suspense>
-  );
-}
-
-function StatementsPage() {
+export default function StatementsPage() {
   const [range, setRange] = useState<Range>("30d");
   const [tab, setTab] = useState<Tab>("overview");
-  const params = useSearchParams();
-  const [picked, setAgent] = useState<string | null | undefined>(undefined);
-  // undefined = not picked yet (use ?agent=), null = "All agents"
-  const agent = (picked === undefined ? params.get("agent") : picked) ?? undefined;
-  const instances = useInstances();
-  const st = useStatement(range, agent);
+  // no instanceId: the full history, earlier agents included
+  const st = useStatement(range);
 
   return (
     <Page>
       <PageHeader title="Statement" subtitle="Your trading results" />
       <Segmented layoutId="range" value={range} onChange={setRange} options={RANGES} />
-      {!!instances.data?.length && (
-        <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 py-1.5 min-[390px]:-mx-5 min-[390px]:px-5">
-          <Chip active={!agent} onClick={() => setAgent(null)}>
-            All agents
-          </Chip>
-          {instances.data.map((i) => (
-            <Chip key={i.id} active={agent === i.id} onClick={() => setAgent(i.id)}>
-              {i.name}
-            </Chip>
-          ))}
-        </div>
-      )}
-
       <div role="tablist" className="mt-3 flex border-b">
         {TABS.map((t) => (
           <button
@@ -85,7 +55,7 @@ function StatementsPage() {
       </div>
 
       {tab === "trades" ? (
-        <Trades key={`${range}:${agent ?? ""}`} range={range} agent={agent} />
+        <Trades key={range} range={range} showAgent={false} />
       ) : st.isPending ? (
         <div className="mt-4 flex flex-col gap-4">
           <Skeleton className="h-44 rounded-lg" />
@@ -97,57 +67,10 @@ function StatementsPage() {
           <ErrorState error={st.error} onRetry={() => st.refetch()} />
         </div>
       ) : tab === "overview" ? (
-        <>
-          <Overview s={st.data} range={range} agent={agent} />
-          <AgentControls instances={instances.data ?? []} agent={agent} />
-        </>
+        <Overview s={st.data} range={range} />
       ) : (
         <Funding s={st.data} />
       )}
     </Page>
-  );
-}
-
-function AgentControls({ instances, agent }: { instances: AgentInstance[]; agent?: string }) {
-  const list = instances.filter((i) => !INSTANCE_FINAL.has(i.status) && i.status !== "stopping" && (!agent || i.id === agent));
-  if (!list.length) return null;
-  return (
-    <>
-      <SectionTitle>Pause or resume</SectionTitle>
-      <Card className="divide-y divide-border px-4">
-        {list.map((i) => (
-          <AgentControlRow key={i.id} inst={i} />
-        ))}
-      </Card>
-    </>
-  );
-}
-
-function AgentControlRow({ inst }: { inst: AgentInstance }) {
-  const { patch, busy } = useInstanceControl(inst);
-  const st = instanceStatus(inst.status);
-  const limit = inst.dailyEntryLimit ?? pick<number>(inst.config, ["daily_limit", "dailyLimit"]);
-  return (
-    <div className="flex min-h-16 items-center gap-3 py-3">
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-body-sm font-semibold">{inst.name}</div>
-        <div className="text-label font-normal text-muted-foreground">
-          {st.label}
-          {limit != null && (inst.entriesToday != null ? ` · ${inst.entriesToday} of ${limit} trades today` : ` · ${limit} trades/day`)}
-          {inst.dailyRiskHalted && " · daily loss limit"}
-        </div>
-      </div>
-      {inst.status === "active" ? (
-        <Button size="sm" variant="secondary" icon={<Icon icon={PauseIcon} size={16} />} loading={busy === "paused"} onClick={() => patch({ status: "paused" })}>
-          Pause
-        </Button>
-      ) : inst.status === "paused" ? (
-        <Button size="sm" variant="secondary" icon={<Icon icon={PlayIcon} size={16} />} loading={busy === "active"} disabled={!inst.entriesEnabled} onClick={() => patch({ status: "active" })}>
-          Resume
-        </Button>
-      ) : (
-        <Pill tone={st.tone}>{st.label}</Pill>
-      )}
-    </div>
   );
 }

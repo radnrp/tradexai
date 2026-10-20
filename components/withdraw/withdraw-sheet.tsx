@@ -8,6 +8,7 @@ import {
   ArrowUp02Icon,
   Cancel01Icon,
   ClipboardPasteIcon,
+  GiftIcon,
   SentIcon,
   Tick02Icon,
   Wallet01Icon,
@@ -16,8 +17,9 @@ import { API } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/session";
 import type { WithdrawalPolicy } from "@/lib/api/types";
 import { describeError } from "@/lib/labels";
-import { add, cmp, fmt, isAmount, mulBps, sub, trimZeros } from "@/lib/money";
-import { useInvalidateLedger, useWallet } from "@/lib/queries";
+import { add, cmp, fmt, isAmount, mulBps, sign, sub, trimZeros } from "@/lib/money";
+import { useInvalidateLedger, useTrader } from "@/lib/queries";
+import { withdrawalBlock, withdrawalErrorText } from "@/lib/trader";
 import { haptic } from "@/lib/telegram";
 import { usePendingAction } from "@/lib/use-pending-action";
 import { networkInfo, tokenByCode } from "@/components/deposit/options";
@@ -88,11 +90,12 @@ function usePolicy() {
   return useQuery({ queryKey: ["withdrawal-policy"], queryFn: API.withdrawalPolicy, staleTime: 5 * 60_000 });
 }
 
+/** Checked against the server's `withdrawable` only (never equity or cash minus the Trial fund); the POST checks again. */
 function amountProblem(amount: string, available: string, p: WithdrawalPolicy) {
   if (!amount) return "Enter an amount";
   if (!isAmount(amount, 18, 8)) return "Max 8 decimals";
   if (cmp(amount, p.minimum) < 0) return `The minimum is ${fmt(p.minimum)} ${p.asset}`;
-  if (cmp(p.feeIncluded ? amount : add(amount, p.fee), available) > 0) return `You only have ${fmt(available)} ${p.asset}`;
+  if (cmp(p.feeIncluded ? amount : add(amount, p.fee), available) > 0) return `You can withdraw up to ${fmt(available)} ${p.asset}`;
   return null;
 }
 
@@ -115,13 +118,13 @@ function WithdrawForm({
   setAmount: (v: string) => void;
   onReview: () => void;
 }) {
-  const wallet = useWallet();
+  const trader = useTrader();
   const policy = usePolicy();
   const { pending } = usePendingAction<Body>("withdraw");
   const [touched, setTouched] = useState(false);
   const [tried, setTried] = useState(false);
 
-  if (wallet.isPending || policy.isPending)
+  if (trader.isPending || policy.isPending)
     return (
       <div className="flex flex-col gap-3" aria-busy aria-label="Loading">
         <Skeleton className="h-16 rounded-lg" />
@@ -129,16 +132,20 @@ function WithdrawForm({
         <Skeleton className="h-40 rounded-lg" />
       </div>
     );
-  if (wallet.isError || policy.isError) return <ErrorState error={wallet.error ?? policy.error} onRetry={() => (wallet.refetch(), policy.refetch())} />;
+  if (!trader.data || policy.isError) return <ErrorState error={trader.error ?? policy.error} onRetry={() => (trader.refetch(), policy.refetch())} />;
 
   const p = policy.data;
-  const available = wallet.data.available;
+  const t = trader.data;
+  // migration, pending funding or missing prices: nothing can be asked for until the server clears it
+  const blocked = withdrawalBlock(t);
+  const available = blocked ? "0" : t.withdrawable;
+  const belowMinimum = !blocked && cmp(available, p.minimum) < 0;
   const addressOk = isEvmAddress(address);
   const addressError = !address ? "Enter your wallet address" : !addressOk ? "Invalid BEP20 address" : null;
   const addressInvalid = touched && !!address && !!addressError;
   const amountError = amountProblem(amount, available, p);
-  // spending more than you have is worth saying right away; the rest waits for "Review"
-  const showAmountError = !!amount && (tried || (!!amountError && amountError.startsWith("You only")));
+  // asking for more than is withdrawable is worth saying right away; the rest waits for "Review"
+  const showAmountError = !!amount && (tried || (!!amountError && amountError.startsWith("You can withdraw")));
   // the most you can type: all of it if the fee comes out of the amount, else what's left after the fee
   const max = p.feeIncluded ? trimZeros(available) : cmp(available, p.fee) > 0 ? trimZeros(sub(available, p.fee)) : "0";
 
@@ -158,7 +165,7 @@ function WithdrawForm({
   function review() {
     setTried(true);
     setTouched(true);
-    if (addressError || amountError) return haptic.error();
+    if (blocked || addressError || amountError) return haptic.error();
     haptic.tap();
     onReview();
   }
@@ -178,12 +185,25 @@ function WithdrawForm({
           </div>
         </div>
         <div className="text-right">
-          <div className="text-caption text-muted-foreground">Available</div>
+          <div className="text-caption text-muted-foreground">Withdrawable</div>
           <div className="text-body-sm font-semibold tabular-nums">
-            {fmt(available)} <span className="font-normal text-muted-foreground">{p.asset}</span>
+            {blocked ? "—" : fmt(available)} <span className="font-normal text-muted-foreground">{p.asset}</span>
           </div>
         </div>
       </div>
+
+      {blocked ? (
+        <Notice tone="warn" title="Withdrawals are paused">
+          {blocked}
+        </Notice>
+      ) : (
+        belowMinimum && (
+          <Notice tone="info" title={`Withdrawals start at ${fmt(p.minimum)} ${p.asset}`}>
+            {sign(t.trialPrincipalRemaining) > 0 ? "The Trial fund can't be withdrawn; settled profit can. " : ""}
+            Money in open trades frees up when they close.
+          </Notice>
+        )
+      )}
 
       {pending && (
         <Notice tone="warn" title="Last try didn't finish">
@@ -247,7 +267,7 @@ function WithdrawForm({
         </p>
       </div>
 
-      <div className={`transition-opacity duration-200 ${addressOk ? "" : "opacity-50"}`}>
+      <div className={`transition-opacity duration-200 ${addressOk && !blocked ? "" : "opacity-50"}`}>
         <AmountDial
           dir="out"
           label={`${p.asset} to withdraw`}
@@ -257,7 +277,7 @@ function WithdrawForm({
           value={amount}
           onChange={setAmount}
           invalid={showAmountError && !!amountError}
-          disabled={!addressOk}
+          disabled={!addressOk || !!blocked}
           quick={[
             { label: "Min", value: trimZeros(p.minimum) },
             { label: "25%", value: trimZeros(mulBps(max, 2500)) },
@@ -275,13 +295,21 @@ function WithdrawForm({
       <div className="flex items-center justify-between px-1 text-label text-muted-foreground tabular-nums">
         <span>
           Fee {fmt(p.fee)} {p.asset}
+          {p.feeIncluded ? ", included" : ""}
         </span>
         <span>
           You get <span className="font-semibold text-foreground">{!amountError ? `${trimZeros(fmt(split(amount, p).receive, 8))} ${p.asset}` : "—"}</span>
         </span>
       </div>
 
-      <Button variant="outgoing" size="lg" block onClick={review}>
+      {sign(t.trialPrincipalRemaining) > 0 && (
+        <p className="flex items-start gap-1.5 px-1 text-caption text-muted-foreground">
+          <Icon icon={GiftIcon} size={14} className="mt-px shrink-0 text-warning" />
+          {fmt(t.trialPrincipalRemaining)} {p.asset} Trial fund stays in your account and isn&apos;t part of this amount. Open trades aren&apos;t closed to free up money.
+        </p>
+      )}
+
+      <Button variant="outgoing" size="lg" block disabled={!!blocked || belowMinimum} onClick={review}>
         Review {p.asset} withdrawal
       </Button>
     </div>
@@ -291,7 +319,7 @@ function WithdrawForm({
 function WithdrawReview({ address, amount, onEdit, onCreated }: { address: string; amount: string; onEdit: () => void; onCreated: (id: string) => void }) {
   const policy = usePolicy();
   const invalidate = useInvalidateLedger();
-  const { run } = usePendingAction<Body>("withdraw");
+  const { run, settle } = usePendingAction<Body>("withdraw");
   const [busy, setBusy] = useState(false);
 
   if (policy.isPending) return <Skeleton className="h-80 rounded-lg" />;
@@ -308,9 +336,18 @@ function WithdrawReview({ address, amount, onEdit, onCreated }: { address: strin
       onCreated(w.id);
     } catch (e) {
       haptic.error();
-      const d = describeError(e);
-      if (e instanceof ApiError && e.uncertain) toast.error("Not sure it worked", { description: "Retry. It won't be sent twice." });
-      else toast.error(d.title, { description: d.detail });
+      // the server re-checks everything here, even when Home showed enough; reread its numbers either way
+      invalidate();
+      if (e instanceof ApiError && e.status === 503 && /not reserved/i.test(e.message)) {
+        // a definite no: nothing was held, so the next try is a new request rather than a retry
+        settle();
+        toast.error("Couldn't withdraw right now", { description: withdrawalErrorText(e.message) });
+      } else if (e instanceof ApiError && e.uncertain) toast.error("Not sure it worked", { description: "Retry. It won't be sent twice." });
+      else if (e instanceof ApiError && e.status === 400) toast.error("Withdrawal not accepted", { description: withdrawalErrorText(e.message) });
+      else {
+        const d = describeError(e);
+        toast.error(d.title, { description: d.detail });
+      }
     } finally {
       setBusy(false);
     }
@@ -329,7 +366,7 @@ function WithdrawReview({ address, amount, onEdit, onCreated }: { address: strin
       </div>
 
       <div className="divide-y divide-border rounded-lg bg-surface-raised px-4">
-        <Row label="From your balance">
+        <Row label="From your account">
           {trimZeros(fmt(debit, 8))} {p.asset}
         </Row>
         <Row label="Fee">
@@ -353,6 +390,9 @@ function WithdrawReview({ address, amount, onEdit, onCreated }: { address: strin
         </p>
       </div>
 
+      <p className="text-center text-caption text-muted-foreground">
+        The full amount is held from your account as soon as the code is sent, and returns if the code expires or the transfer is cancelled.
+      </p>
       <p className="flex items-center justify-center gap-1.5 text-label text-muted-foreground">
         <Icon icon={SentIcon} size={14} className="shrink-0 text-info" /> Next: confirm with a bot code
       </p>

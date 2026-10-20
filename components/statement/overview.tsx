@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { Award01Icon, ChartDownIcon, ChartUpIcon, ThumbsDownIcon } from "@hugeicons/core-free-icons";
 import type { Range, Statement } from "@/lib/api/types";
 import { fmtDateTime } from "@/lib/format";
-import { sign } from "@/lib/money";
 import { tradeStats } from "@/lib/trade-stats";
 import { valuationNotes } from "@/lib/valuation";
 import { EquityChart } from "@/components/trading/equity-chart";
@@ -116,13 +115,6 @@ export function Overview({ s, range, agent }: { s: Statement; range: Range; agen
               {loadingMore ? "Loading more trades…" : `Based on your latest ${stats.count} of ${total} trades.`}
             </p>
           )}
-
-          {!agent && stats.byAgent.length > 1 && (
-            <>
-              <SectionTitle>By agent</SectionTitle>
-              <ByAgent rows={stats.byAgent} />
-            </>
-          )}
         </>
       )}
       <p className="mt-4 px-1 text-caption text-subtle">Updated {fmtDateTime(s.asOf)}</p>
@@ -131,29 +123,6 @@ export function Overview({ s, range, agent }: { s: Statement; range: Range; agen
 }
 
 const coin = (symbol: string) => symbol.replace("USDT", "");
-
-/** One row per agent: net result with a bar sized to the biggest one. */
-function ByAgent({ rows }: { rows: { key: string; count: number; wins: number; net: string }[] }) {
-  const max = Math.max(...rows.map((r) => Math.abs(Number(r.net))), 1e-9);
-  return (
-    <Card className="divide-y divide-border px-4">
-      {rows.map((r) => (
-        <div key={r.key} className="py-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="truncate text-body-sm font-semibold">{r.key}</span>
-            <Amount value={r.net} unit="USDT" signed colored className="text-body-sm font-semibold" />
-          </div>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-raised">
-            <div className={`h-full rounded-full ${sign(r.net) >= 0 ? "bg-primary" : "bg-destructive"}`} style={{ width: `${(Math.abs(Number(r.net)) / max) * 100}%` }} />
-          </div>
-          <div className="mt-1 text-caption text-muted-foreground tabular-nums">
-            {r.count} trade{r.count > 1 ? "s" : ""} · {Math.round((r.wins / r.count) * 100)}% won
-          </div>
-        </div>
-      ))}
-    </Card>
-  );
-}
 
 function WinBar({ wins, losses, even }: { wins: number; losses: number; even: number }) {
   const total = wins + losses + even;

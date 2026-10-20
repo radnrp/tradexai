@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Alert02Icon,
@@ -7,14 +8,18 @@ import {
   ChartLineData02Icon,
   Clock01Icon,
   Coins01Icon,
-  PauseIcon,
+  GiftIcon,
+  Layers01Icon,
+  PieChartIcon,
   Robot01Icon,
-  SecurityCheckIcon,
-  StopIcon,
   Target02Icon,
   Wallet01Icon,
 } from "@hugeicons/core-free-icons";
-import { pct, type Policy, timeLimitText } from "@/lib/agent-info";
+import { pct, readPolicy } from "@/lib/agent-info";
+import { API } from "@/lib/api/client";
+import type { Trader } from "@/lib/api/types";
+import { fmt } from "@/lib/money";
+import { qk } from "@/lib/queries";
 import { haptic } from "@/lib/telegram";
 import { Button, IconButton } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -22,73 +27,62 @@ import { Sheet } from "@/components/ui/sheet";
 
 type IconSvg = Parameters<typeof Icon>[0]["icon"];
 type Slide = { icon: IconSvg; color: string; title: string; body: string; points: { icon: IconSvg; text: string }[] };
-/** The catalog's shared rules; rr is null when the agents don't share one target. */
-export type TourFacts = { policy: Policy; rr: number | string | null };
+type Facts = Pick<Trader, "tradePolicy" | "quota" | "feeBpsPerSide" | "minimumCapital">;
 
-// each slide has its own color so the steps feel distinct; values are the app's tokens plus one accent.
-// numbers come from the catalog so the guide can't drift from the rules
-function slides({ policy: p, rr }: TourFacts): Slide[] {
-  const lev = p.leverage != null ? `${p.leverage}× leverage` : p.maxLeverage != null ? `auto leverage up to ${p.maxLeverage}×` : "auto leverage";
+// each slide has its own color so the steps feel distinct; numbers come from GET /trader so the guide can't drift from the rules
+function slides(t: Facts): Slide[] {
+  const p = readPolicy(t.tradePolicy);
+  const lev = p.leverage != null ? `${p.leverage}×` : p.maxLeverage != null ? `up to ${p.maxLeverage}×` : "auto";
   return [
     {
       icon: Robot01Icon,
       color: "var(--color-primary)",
-      title: "What is an agent?",
-      body: "A bot that scalps crypto for you, long or short.",
+      title: "Meet your agent",
+      body: "It trades crypto for you, long or short, 24/7.",
       points: [
-        { icon: Clock01Icon, text: "Runs 24/7" },
-        { icon: ChartLineData02Icon, text: `Top ${p.universe} coins, ${lev}` },
+        { icon: Clock01Icon, text: "Always on. Nothing to start or stop" },
+        { icon: ChartLineData02Icon, text: `Top ${p.universe} coins, leverage ${lev}` },
       ],
     },
     {
       icon: Wallet01Icon,
       color: "var(--color-info)",
-      title: "Its own budget",
-      body: "You set how much it trades with.",
+      title: "One account",
+      body: "Every deposit goes to the same account.",
       points: [
-        { icon: Coins01Icon, text: "Minimum per agent, more is fine" },
-        { icon: Target02Icon, text: `${pct(p.budgetBps)} of its value per trade, fees on top` },
+        { icon: GiftIcon, text: "Trial fund trades too, but can't be withdrawn" },
+        { icon: Coins01Icon, text: "Settled profit can be withdrawn" },
       ],
     },
     {
       icon: Target02Icon,
       color: "var(--color-warning)",
       title: "Every trade has an exit",
-      body: p.maxHoldingMs == null ? "Take profit or stop loss. No time limit." : `Take profit, stop loss, or ${timeLimitText(p)} max.`,
+      body: "Take profit or stop loss. No time limit.",
       points: [
-        { icon: ChartLineData02Icon, text: rr != null ? `Take profit ${+Number(rr).toFixed(2)}× the stop distance` : "Take profit set from the stop distance" },
-        { icon: Coins01Icon, text: "Fee on entry and exit" },
-      ],
-    },
-    {
-      icon: SecurityCheckIcon,
-      color: "#9b6bff",
-      title: "You stay in control",
-      body: "Pause or stop anytime.",
-      points: [
-        { icon: PauseIcon, text: "Pause: no new trades" },
-        { icon: StopIcon, text: "Stop: money comes back" },
+        { icon: Layers01Icon, text: `Up to ${t.quota.hourlyEntryLimit} new trades an hour, ${t.quota.maxOpenPositions} open at once` },
+        { icon: PieChartIcon, text: `Fee ${pct(t.feeBpsPerSide)} of the trade's margin, each side` },
       ],
     },
     {
       icon: Alert02Icon,
       color: "var(--color-destructive)",
       title: "Know the risk",
-      body: "Targets aren't guarantees. You can lose money.",
+      body: "Results aren't guaranteed. You can lose money.",
       points: [
-        p.dailyLossBps != null
-          ? { icon: ChartLineData02Icon, text: `A ${pct(p.dailyLossBps)} daily loss pauses new trades` }
-          : null,
+        { icon: Wallet01Icon, text: `Below ${fmt(t.minimumCapital, 0)} USDT, new trades pause` },
         { icon: Alert02Icon, text: "Only risk what you can afford" },
-      ].filter((x): x is Slide["points"][number] => x != null),
+      ],
     },
   ];
 }
 
-export function AgentsTour({ open, facts, onClose }: { open: boolean; facts: TourFacts; onClose: () => void }) {
+/** The agent walkthrough. Finishing it ("Got it") records the tutorial step on the server; closing early doesn't. */
+export function AgentTour({ open, t, onClose }: { open: boolean; t: Facts; onClose: () => void }) {
   const [[i, dir], setPos] = useState<[number, number]>([0, 1]);
   const reduce = useReducedMotion();
-  const SLIDES = slides(facts);
+  const qc = useQueryClient();
+  const SLIDES = slides(t);
   const s = SLIDES[i];
   const last = i === SLIDES.length - 1;
 
@@ -97,17 +91,24 @@ export function AgentsTour({ open, facts, onClose }: { open: boolean; facts: Tou
     haptic.select();
     setPos([to, to > i ? 1 : -1]);
   };
-  const finish = () => {
+  const close = () => {
     onClose();
     // reopen at the start next time
     setTimeout(() => setPos([0, 1]), 300);
+  };
+  const finish = () => {
+    close();
+    // idempotent on the server, which keeps the first time; a failure just leaves the step open
+    API.patchPreferences({ tutorialWatched: true })
+      .then(() => qc.invalidateQueries({ queryKey: qk.trader }))
+      .catch(() => {});
   };
 
   return (
     <Sheet
       open={open}
-      onClose={finish}
-      title="How agents work"
+      onClose={close}
+      title="How your agent works"
       subtitle={`${i + 1} of ${SLIDES.length}`}
       footer={
         <div className="flex items-center gap-2">
@@ -164,7 +165,7 @@ export function AgentsTour({ open, facts, onClose }: { open: boolean; facts: Tou
               </motion.span>
             </div>
             <h3 className="mt-4 text-h1">{s.title}</h3>
-            <p className="mt-1.5 max-w-72 text-body-sm text-muted-foreground">{s.body}</p>
+            <p className="mt-1.5 max-w-80 text-body-sm text-muted-foreground">{s.body}</p>
             <ul className="mt-5 flex w-full flex-col gap-2">
               {s.points.map((p, k) => (
                 <motion.li

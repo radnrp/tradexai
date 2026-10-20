@@ -32,15 +32,147 @@ export interface Health {
     connected: boolean;
     origin: string;
     entriesEnabled: boolean;
+    /** false in single_xeno mode: the permanent account is created by the server. */
     userActivationAvailable: boolean;
+    accountMode?: "single_xeno" | (string & {});
     state: string;
   };
 }
 
 export interface Wallet {
   asset: string;
+  /** In single_xeno mode this equals the trader's `withdrawable`. */
   available: Dec;
+  /** Compatibility only: summing these is not the account value. */
   accounts: { id: string; balance: Dec }[];
+  accountMode?: "single_xeno" | (string & {});
+}
+
+/** Why new entries are paused. Exits and funding keep running either way. */
+export type PauseReason = "risk_drawdown" | "minimum_capital" | (string & {});
+export type WithdrawalBlockedReason = "migration_pending" | "funding_pending" | "valuation_unavailable" | (string & {});
+export type OnboardingStepKey = "account_created" | "tutorial_watched" | "fund_account" | "trader_ready" | (string & {});
+
+/** GET /trader: the one permanent XENO account, the source for Home. Amounts are exact decimals; null means unknown, never zero. */
+export interface Trader {
+  asset: string;
+  instanceId: string;
+  modelId: string;
+  permanent: boolean;
+  minimumCapital: Dec;
+  status: InstanceStatus | string;
+  pauseReason: PauseReason | null;
+  /** Old trades are settling while not "ready"; never guess when it ends. */
+  migrationState: "ready" | "draining" | (string & {});
+  /** Free cash, before the Trial fund principal is locked. */
+  cash: Dec;
+  /** Current value inside the account, without reserved withdrawals; null while data is invalid. */
+  tradingEquity: Dec | null;
+  /** Trial fund principal left; never withdrawable. */
+  trialPrincipalRemaining: Dec;
+  /** The most a withdrawal may ask for right now; the server checks again on POST. */
+  withdrawable: Dec;
+  /** The withdrawable figure could be computed; true doesn't mean it reaches the minimum. */
+  withdrawalAvailable: boolean;
+  withdrawalBlockedReason: WithdrawalBlockedReason | null;
+  /** Everything booked to the account, collateral and reserves included. */
+  bookedEquity: Dec;
+  /** Live value with open P&L; null without a valid valuation. */
+  equity: Dec | null;
+  /** equity after estimated exit fees (the name doesn't mean a liquidation). */
+  liquidationEquity: Dec | null;
+  pnl: { realizedNet: Dec; unrealizedNetEstimate: Dec | null };
+  valuation: Valuation & { openPositions?: number };
+  quota: TraderQuota;
+  engine: { origin: string; entriesEnabled: boolean; blockedReason: string | null; lastTickAt: string | null };
+  feeBpsPerSide: number;
+  publicActivity: boolean;
+  onboarding: { completed: number; total: number; steps: { key: OnboardingStepKey; complete: boolean }[] };
+  tradePolicy?: TradePolicy | null;
+  asOf: string;
+}
+
+/** Entries counted over a rolling 60 minutes; exits never use quota. Open positions are long + short together. */
+export interface TraderQuota {
+  basis: "rolling_60_minutes" | (string & {});
+  hourlyEntryLimit: number;
+  entriesLastHour: number;
+  remainingEntries: number;
+  /** When the first slot frees up; not a promise of an entry then. */
+  nextEntrySlotAt: string | null;
+  maxOpenPositions: number;
+  openPositions: number;
+}
+
+export interface TraderPreferences {
+  /** Consent to appear (masked) in the community feed; the app no longer offers the switch. */
+  publicActivity?: boolean;
+  tutorialWatched?: boolean;
+}
+
+/** A settled, positive trade result: net of both fees and funding. Not a deposit; never add it to a balance. */
+export interface TraderEvent {
+  id: string;
+  type: "trade_profit" | (string & {});
+  symbol: string;
+  side: "long" | "short";
+  amount: Dec;
+  occurredAt: string;
+}
+
+export interface TraderEventsPage {
+  items: TraderEvent[];
+  /** Opaque; pass back as `after`. */
+  nextAfter: string;
+  curated: string;
+}
+
+export interface CommunityItem {
+  id: string;
+  type: "trade_profit" | "withdrawal" | (string & {});
+  /** Already masked by the server ("Par***"). */
+  name: string;
+  /** Trade: net profit. Withdrawal: net amount delivered. */
+  amount: Dec;
+  asset: string;
+  symbol: string | null;
+  occurredAt: string;
+}
+
+export interface CommunityFeed {
+  items: CommunityItem[];
+  curated: string;
+  asOf: string;
+}
+
+export type LeaderboardRange = "today" | "7d" | "30d";
+
+/** GET /community/leaderboard: positive nets only, at most 50 rows, names masked by the server. */
+export interface Leaderboard {
+  range: LeaderboardRange;
+  timezone: string;
+  from: string;
+  asOf: string;
+  /** Sum of every settled win and loss in the period, both fees and funding included. */
+  basis: string;
+  positiveResultsOnly: boolean;
+  items: { rank: number; name: string; net: Dec; trades: number; modelId: string }[];
+}
+
+/** GET /trader/calculator: a historical illustration, never a forecast. */
+export interface Calculator {
+  status: "available" | "insufficient_data";
+  amount: Dec;
+  range: string;
+  sampleTrades: number;
+  sampleAccounts: number;
+  firstTradeAt: string | null;
+  lastTradeAt: string | null;
+  /** Signed; null with too little data. */
+  illustrativeNet: Dec | null;
+  method: string;
+  forecast: false;
+  note: string;
 }
 
 export interface DepositCurrency {
@@ -169,7 +301,7 @@ export interface AgentInstance {
   model_id: string;
   name: string;
   status: InstanceStatus | string;
-  /** Set by the server for subscriptions only; null for trade_fee agents. */
+  /** Set by the server for subscriptions only; null for trade_fee agents and the permanent account. */
   starts_at: string | null;
   expires_at: string | null;
   created_at?: string;
@@ -185,9 +317,9 @@ export interface AgentInstance {
   engineConnected: boolean;
   entriesEnabled: boolean;
   executionState: string;
-  /** Daily entry quota of this agent; resets at 00:00 UTC. Read it, never count history cards. */
+  /** Legacy daily entry quota; null on the permanent account (its quota is the rolling hour on GET /trader). */
   entriesToday?: number;
-  dailyEntryLimit?: number;
+  dailyEntryLimit?: number | null;
   remainingDailyEntries?: number;
   dailyLimitResetsAt?: string | null;
   /** New entries stopped for the rest of the UTC day by the daily loss guard; open trades are still managed. */
@@ -314,6 +446,8 @@ export interface FinancialPeriod {
   /** tradingNet with funding booked in the same period. */
   tradingNetAfterFunding?: Dec;
   referralIncome: Dec;
+  /** Trial fund granted in the period; neither a deposit nor a trading result. */
+  trialGrants?: Dec;
   capitalIn: Dec;
   capitalOut: Dec;
   otherNet: Dec;
@@ -392,7 +526,7 @@ export interface ReferredUser {
   joined_at: string;
   /** Referral income booked from this user's fees. */
   earned: Dec;
-  /** Has at least one running agent. */
+  /** Their account is trading. */
   active: boolean;
 }
 

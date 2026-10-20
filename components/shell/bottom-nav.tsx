@@ -2,16 +2,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
-import { ChartLineData01Icon, GiftIcon, Home01Icon, Robot01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
+import { Award01Icon, ChartLineData01Icon, Home01Icon, Robot01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
 import { haptic } from "@/lib/telegram";
 import { Icon } from "@/components/ui/icon";
 
 const TABS = [
   { href: "/", label: "Home", icon: Home01Icon },
-  { href: "/agents", label: "Agents", icon: Robot01Icon },
+  { href: "/agents", label: "Agent", icon: Robot01Icon },
   { href: "/wallet", label: "Wallet", icon: Wallet01Icon },
   { href: "/statements", label: "Statement", icon: ChartLineData01Icon },
-  { href: "/referrals", label: "Invite", icon: GiftIcon },
+  { href: "/leaderboard", label: "Leaders", icon: Award01Icon },
 ];
 export const TAB_ROOTS = TABS.map((t) => t.href);
 

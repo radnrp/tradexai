@@ -1,5 +1,5 @@
 "use client";
-import { ArrowDown02Icon, ArrowUp02Icon, ChartLineData02Icon, GiftIcon, Wallet01Icon } from "@hugeicons/core-free-icons";
+import { ArrowDown02Icon, ArrowUp02Icon, ChartLineData02Icon, GiftIcon, UserAdd01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
 import type { Statement } from "@/lib/api/types";
 import { fmt, sign } from "@/lib/money";
 import { Icon } from "@/components/ui/icon";
@@ -36,13 +36,19 @@ export function Funding({ s }: { s: Statement }) {
         <Tile icon={ChartLineData02Icon} tint="amber" label="From trading" hint={tradingHint ?? undefined}>
           <Amount value={trading} unit={s.asset} signed colored />
         </Tile>
-        <Tile icon={GiftIcon} tint="gray" label="From invited friends">
+        <Tile icon={UserAdd01Icon} tint="gray" label="From invited friends">
           <Amount value={f.referralIncome} unit={s.asset} signed colored />
         </Tile>
+        {/* the sign-up Trial fund is its own line: not a deposit and not a trading result */}
+        {f.trialGrants != null && sign(f.trialGrants) !== 0 && (
+          <div className="col-span-2">
+            <Tile icon={GiftIcon} tint="amber" label="Trial fund granted" hint="Trades in your account; not withdrawable">
+              <Amount value={f.trialGrants} unit={s.asset} />
+            </Tile>
+          </div>
+        )}
       </div>
-      <p className="mt-2 px-1 text-caption text-muted-foreground">
-        Booked when each fee or result hit your balance, so it can include fees of trades still open. Overview counts trades by close time, so the two can differ.
-      </p>
+      <p className="mt-2 px-1 text-caption text-muted-foreground">Booked when it hit your balance, so it can differ slightly from Overview.</p>
     </>
   );
 }

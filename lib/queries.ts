@@ -2,12 +2,11 @@
 import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { API } from "./api/client";
-import type { Range } from "./api/types";
+import type { LeaderboardRange, Range } from "./api/types";
 
 export const qk = {
   health: ["health"] as const,
-  wallet: ["wallet"] as const,
-  models: ["models"] as const,
+  trader: ["trader"] as const,
   instances: ["instances"] as const,
   instance: (id: string) => ["instance", id] as const,
   statement: (range: Range, instanceId?: string) => ["statement", range, instanceId ?? "all"] as const,
@@ -17,6 +16,10 @@ export const qk = {
   deposits: ["deposits"] as const,
   withdrawals: ["withdrawals"] as const,
   activity: (range?: Range, instanceId?: string) => ["activity", range ?? "all", instanceId ?? "all"] as const,
+  feed: ["community", "feed"] as const,
+  communityWithdrawals: ["community", "withdrawals"] as const,
+  leaderboard: (range: LeaderboardRange) => ["community", "leaderboard", range] as const,
+  calculator: (amount: string, range: string) => ["calculator", amount, range] as const,
 };
 
 /** Poll every `ms` until a final status; back off after failures. Paused while the app is hidden. */
@@ -28,9 +31,8 @@ export function pollUntil(final: Set<string>, ms = 10_000) {
   };
 }
 
-export const useHealth = () => useQuery({ queryKey: qk.health, queryFn: API.health, staleTime: 60_000 });
-export const useWallet = () => useQuery({ queryKey: qk.wallet, queryFn: API.wallet });
-export const useModels = () => useQuery({ queryKey: qk.models, queryFn: API.models, staleTime: 5 * 60_000 });
+/** The permanent XENO account. Every 10s in the foreground; React Query stops polling while the app is hidden and refetches on return. */
+export const useTrader = () => useQuery({ queryKey: qk.trader, queryFn: API.trader, refetchInterval: 10_000 });
 export const useInstances = (poll = false) =>
   useQuery({ queryKey: qk.instances, queryFn: API.instances, refetchInterval: poll ? 15_000 : false });
 export const useStatement = (range: Range, instanceId?: string) =>
@@ -42,7 +44,7 @@ export function useInvalidateLedger() {
   const qc = useQueryClient();
   return () =>
     Promise.all(
-      ["wallet", "instances", "instance", "statement", "positions", "activity", "deposits", "withdrawals", "referrals"].map((k) =>
+      ["trader", "instances", "instance", "statement", "positions", "activity", "deposits", "withdrawals", "referrals"].map((k) =>
         qc.invalidateQueries({ queryKey: [k] }),
       ),
     );

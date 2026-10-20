@@ -8,7 +8,7 @@ import { API } from "@/lib/api/client";
 import { apiErrorCode } from "@/lib/api/session";
 import type { Deposit } from "@/lib/api/types";
 import { fmtAgo, shortAddr } from "@/lib/format";
-import { fmt } from "@/lib/money";
+import { fmt, sign } from "@/lib/money";
 import { DEPOSIT_FINAL, depositStatus, describeError } from "@/lib/labels";
 import { pollUntil, qk, useInvalidateLedger } from "@/lib/queries";
 import { haptic } from "@/lib/telegram";
@@ -32,9 +32,10 @@ export function DepositPayment({ id, onNew, onDone }: { id: string; onNew: () =>
   const invalidate = useInvalidateLedger();
   const wasCredited = useRef<boolean | null>(null);
 
+  // money reached the XENO account: reread GET /trader and the statement. Nothing else to call; the account is already running.
   useEffect(() => {
     if (!q.data) return;
-    const credited = q.data.status === "credited";
+    const credited = q.data.status === "credited" || sign(q.data.credited_amount) > 0;
     if (wasCredited.current === false && credited) {
       haptic.success();
       invalidate();
@@ -139,14 +140,14 @@ function PaymentView({
         >
           <Icon icon={CheckmarkCircle02Icon} size={40} />
         </motion.div>
-        <h3 className="mt-4 text-h1">Money added</h3>
+        <h3 className="mt-4 text-h1">Deposit credited</h3>
         <div className="mt-2 text-display">
           <Amount value={d.credited_amount} unit={d.asset} />
         </div>
-        <p className="mt-1 text-body-sm text-muted-foreground">is now in your balance.</p>
+        <p className="mt-1 text-body-sm text-muted-foreground">was added to your account. Your agent trades with it automatically.</p>
         <div className="mt-7 flex w-full flex-col gap-2">
           <Button as="a" href="/agents" size="lg" block onClick={onDone}>
-            Start an agent
+            View agent
           </Button>
           <Button variant="secondary" size="lg" block onClick={onDone}>
             Done

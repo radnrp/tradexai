@@ -10,9 +10,11 @@ import { BOT_USERNAME, MINI_APP_SHORT_NAME } from "@/lib/env";
 import { describeError } from "@/lib/labels";
 import { setupTelegramChrome, tg } from "@/lib/telegram";
 import { DepositProvider } from "@/components/deposit/deposit-sheet";
+import { resetProfitEvents } from "@/components/trader/profit-events";
 import { WithdrawProvider } from "@/components/withdraw/withdraw-sheet";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { LiveTicker } from "./live-ticker";
 import { Logo } from "./logo";
 import { BottomNav, TAB_ROOTS } from "./bottom-nav";
 
@@ -50,6 +52,8 @@ export function BootGate({ children }: { children: React.ReactNode }) {
     run();
     return onSessionExpired(() => {
       clearSession();
+      // the profit-event cursor belongs to this session only
+      resetProfitEvents();
       qc.clear();
       setState({ kind: "expired" });
     });
@@ -64,6 +68,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
               <WithdrawProvider>
                 <TelegramBackButton />
                 <OfflineBanner />
+                <LiveTicker />
                 {children}
                 <BottomNav />
               </WithdrawProvider>

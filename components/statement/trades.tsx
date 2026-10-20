@@ -25,7 +25,7 @@ function usePositionPage(kind: Kind, page: number, range: Range, agent?: string)
 }
 
 /** Open and closed trades, each on its own 5-per-page list. Remount (key) on range / agent change to reset the pages. */
-export function Trades({ range, agent }: { range: Range; agent?: string }) {
+export function Trades({ range, agent, showAgent = !agent }: { range: Range; agent?: string; showAgent?: boolean }) {
   const [picked, setKind] = useState<Kind | null>(null);
   const [page, setPage] = useState({ open: 1, closed: 1 });
   const open = usePositionPage("open", page.open, range, agent);
@@ -77,7 +77,7 @@ export function Trades({ range, agent }: { range: Range; agent?: string }) {
       ) : (
         <div className={`flex flex-col gap-2 transition-opacity ${q.isPlaceholderData ? "opacity-60" : ""}`}>
           {q.data.items.map((p) => (
-            <PositionCard key={p.id} p={p} showAgent={!agent} />
+            <PositionCard key={p.id} p={p} showAgent={showAgent} />
           ))}
         </div>
       )}

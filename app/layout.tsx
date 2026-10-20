@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-int
 
 export const metadata: Metadata = {
   title: "TradeXai",
-  description: "Put AI trading agents to work on your USDT.",
+  description: "An AI trading agent for your USDT, inside Telegram.",
 };
 
 export const viewport: Viewport = {

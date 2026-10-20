@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight01Icon, GiftIcon, Invoice03Icon, Robot01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon, Award01Icon, GiftIcon, Invoice03Icon, Robot01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
 import { telegramUser } from "@/lib/api/session";
 import { useSession } from "@/components/shell/boot-gate";
 import { Wordmark } from "@/components/shell/logo";
@@ -8,7 +8,8 @@ import { Icon } from "@/components/ui/icon";
 import { Card, FlowHeader, Page, Row } from "@/components/ui/primitives";
 
 const LINKS = [
-  { href: "/agents/mine", label: "My agents", icon: Robot01Icon },
+  { href: "/agents", label: "Agent", icon: Robot01Icon },
+  { href: "/leaderboard", label: "Leaderboard", icon: Award01Icon },
   { href: "/activity", label: "Activity", icon: Invoice03Icon },
   { href: "/wallet", label: "Wallet", icon: Wallet01Icon },
   { href: "/referrals", label: "Invite friends", icon: GiftIcon },

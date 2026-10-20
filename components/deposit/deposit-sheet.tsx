@@ -56,7 +56,7 @@ export function DepositProvider({ children }: { children: React.ReactNode }) {
         open={open}
         onClose={close}
         title="Deposit"
-        subtitle={view.kind === "form" ? "Fund your balance" : "Send your payment"}
+        subtitle={view.kind === "form" ? "Add to your account" : "Send your payment"}
         icon={<DirectionBadge dir="in" icon={ArrowDown02Icon} />}
       >
         {view.kind === "form" ? (

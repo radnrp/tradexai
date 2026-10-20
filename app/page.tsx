@@ -1,130 +1,68 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "motion/react";
-import { Add01Icon, ArrowRight01Icon, Invoice03Icon, Notification03Icon, Robot01Icon, UserCircleIcon } from "@hugeicons/core-free-icons";
+import { ArrowDown02Icon, ArrowRight01Icon, ArrowUp02Icon, GiftIcon, Invoice03Icon, Notification03Icon, UserCircleIcon } from "@hugeicons/core-free-icons";
 import { API } from "@/lib/api/client";
 import { telegramUser } from "@/lib/api/session";
-import { cmp } from "@/lib/money";
-import { valuationNotes } from "@/lib/valuation";
-import { qk, useHealth, useInstances, useLedgerSync, useStatement, useWallet } from "@/lib/queries";
-import { BalanceCard } from "@/components/balance-card";
-import { InstanceTile } from "@/components/agents/shared";
-import { useOpenDeposit } from "@/components/deposit/deposit-sheet";
+import type { Trader } from "@/lib/api/types";
+import { add, fmt, sign } from "@/lib/money";
+import { qk, useLedgerSync, useStatement, useTrader } from "@/lib/queries";
+import { haptic } from "@/lib/telegram";
 import { ActivityItem } from "@/components/activity-item";
-import { PositionCard } from "@/components/trading/position-card";
+import { toneCls } from "@/components/agents/shared";
+import { useOpenDeposit } from "@/components/deposit/deposit-sheet";
+import { useOpenWithdraw } from "@/components/withdraw/withdraw-sheet";
 import { useSession } from "@/components/shell/boot-gate";
-import { Button } from "@/components/ui/button";
+import { OnboardingCard } from "@/components/trader/account-cards";
+import { AgentOrb } from "@/components/trader/agent-orb";
+import { AgentTour } from "@/components/trader/agent-tour";
+import { CalculatorButton, CalculatorDialog } from "@/components/trader/calculator";
+import { useProfitBubbles } from "@/components/trader/profit-events";
+import { WelcomeDialog } from "@/components/trader/welcome-dialog";
 import { Icon } from "@/components/ui/icon";
-import { Amount, Card, EmptyState, ErrorState, ListSkeleton, Page, Pill, SectionTitle, Skeleton, Stat } from "@/components/ui/primitives";
+import { Card, EmptyState, ErrorState, ListSkeleton, Page, SectionTitle, Skeleton } from "@/components/ui/primitives";
 
+/** Home is the agent: the live circle, then what matters most (warnings, value, P&L), money actions, then everything else below. */
 export default function Dashboard() {
   const { user } = useSession();
-  const wallet = useWallet();
-  const instances = useInstances(true);
-  const statement = useStatement("30d");
-  const positions = useQuery({ queryKey: qk.positions("open"), queryFn: () => API.positions({ status: "open", limit: 3 }), refetchInterval: 15_000 });
+  const trader = useTrader();
+  const { bubbles, done } = useProfitBubbles();
   const activity = useQuery({ queryKey: qk.activity(), queryFn: () => API.activity({ page: 1 }) });
-
-  const live = (instances.data ?? []).filter((i) => !["stopped", "expired"].includes(i.status));
-  const fresh = wallet.data && cmp(wallet.data.available, "0") === 0 && instances.data?.length === 0;
-  const names = Object.fromEntries((instances.data ?? []).map((i) => [i.id, i.name]));
-  // a trade opening/closing or funding settling on any agent moves the balance: reread it from the server
-  useLedgerSync(instances.data ? instances.data.map((i) => `${i.id}:${i.status}:${i.openPositions}:${i.pendingOrders}:${i.funding_reserved ?? ""}`).join("|") : null);
+  const [tour, setTour] = useState(false);
+  const [calc, setCalc] = useState(false);
+  const t = trader.data;
+  // a trade opening/closing, funding settling or the migration finishing moves the balance: reread the ledger from the server
+  useLedgerSync(t ? `${t.status}:${t.pauseReason}:${t.migrationState}:${t.quota.openPositions}:${t.valuation.fundingPendingPositions ?? ""}:${t.pnl.realizedNet}` : null);
 
   return (
     <Page>
       <TopBar name={user.name} />
-      <BalanceCard wallet={wallet} />
 
-      {fresh && <Onboarding />}
-
-      <SectionTitle href="/agents/mine">Your agents</SectionTitle>
-      {instances.isPending ? (
-        <div className="flex gap-3 overflow-hidden" aria-busy aria-label="Loading agents">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-36 w-40 shrink-0 rounded-lg" />
-          ))}
+      {trader.isPending ? (
+        <div className="flex flex-col items-center gap-3 py-1" aria-busy aria-label="Loading your agent">
+          <Skeleton className="size-63 rounded-full" />
+          <Skeleton className="h-4 w-44" />
         </div>
-      ) : instances.isError ? (
-        <ErrorState error={instances.error} onRetry={() => instances.refetch()} />
-      ) : live.length ? (
-        <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 min-[390px]:-mx-5 min-[390px]:px-5">
-          {live.map((i, n) => (
-            <motion.div key={i.id} className="snap-start" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: n * 0.03, duration: 0.2 }}>
-              <InstanceTile inst={i} />
-            </motion.div>
-          ))}
-          <Link
-            href="/agents#choose"
-            className="flex w-40 shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-label text-muted-foreground active:text-foreground"
-          >
-            <span className="grid size-10 place-items-center rounded-full bg-surface-raised text-foreground">
-              <Icon icon={Add01Icon} />
-            </span>
-            New agent
-          </Link>
-        </div>
+      ) : !t ? (
+        <ErrorState error={trader.error} onRetry={() => trader.refetch()} />
       ) : (
-        <EmptyState
-          icon={<Icon icon={Robot01Icon} size={28} />}
-          title="No agents running"
-          action={
-            <Button as="a" href="/agents#choose" size="sm" icon={<Icon icon={Add01Icon} size={16} />}>
-              Browse agents
-            </Button>
-          }
-        />
-      )}
-
-      <SectionTitle href="/statements" linkLabel="Statement">
-        Last 30 days
-      </SectionTitle>
-      {statement.isPending ? (
-        <Skeleton className="h-40 rounded-lg" />
-      ) : statement.isError ? (
-        <ErrorState error={statement.error} onRetry={() => statement.refetch()} />
-      ) : (
-        <Card className="grid grid-cols-2 gap-x-4 gap-y-5 p-4">
-          <Stat label="Balance" hint="Excl. open trades">
-            <Amount value={statement.data.bookedEquity} unit="USDT" />
-          </Stat>
-          <Stat
-            label="Total value"
-            hint={
-              statement.data.valuation.status === "complete" ? (
-                "Incl. open trades"
-              ) : (
-                <Pill tone={statement.data.valuation.status === "partial" ? "pending" : "bad"}>
-                  {(() => {
-                    const n = valuationNotes(statement.data);
-                    return n.prices ? (statement.data.valuation.status === "partial" ? "Some prices missing" : "Prices unavailable") : "Funding being checked";
-                  })()}
-                </Pill>
-              )
-            }
-          >
-            <Amount value={statement.data.equity} unit="USDT" />
-          </Stat>
-          <Stat label="Realized PnL" hint={`${statement.data.realized.closed_trades} trades`}>
-            <Amount value={statement.data.realized.realized_net} unit="USDT" signed colored />
-          </Stat>
-          <Stat label="Open PnL">
-            <Amount value={statement.data.unrealizedNetEstimate} unit="USDT" signed colored />
-          </Stat>
-        </Card>
-      )}
-
-      {!!positions.data?.items.length && (
         <>
-          <SectionTitle href="/statements">Open trades</SectionTitle>
-          <div className="flex flex-col gap-2">
-            {positions.data.items.map((p) => (
-              <PositionCard key={p.id} p={p} />
-            ))}
+          <AgentOrb t={t} bubbles={bubbles} onBubbleDone={done} />
+          <AgentSummary t={t} />
+          <QuickActions />
+          <div className="mt-3">
+            <OnboardingCard t={t} onTutorial={() => setTour(true)} />
           </div>
+          <WelcomeDialog t={t} userId={user.id} onTutorial={() => setTour(true)} />
+          <AgentTour open={tour} t={t} onClose={() => setTour(false)} />
         </>
       )}
+
+      <div className="mt-4 flex justify-center">
+        <CalculatorButton onClick={() => setCalc(true)} />
+      </div>
+      <CalculatorDialog open={calc} onClose={() => setCalc(false)} />
 
       <SectionTitle href="/activity">Recent activity</SectionTitle>
       {activity.isPending ? (
@@ -133,8 +71,8 @@ export default function Dashboard() {
         <ErrorState error={activity.error} onRetry={() => activity.refetch()} />
       ) : activity.data.items.length ? (
         <Card className="divide-y divide-border px-4">
-          {activity.data.items.slice(0, 5).map((j) => (
-            <ActivityItem key={j.id} j={j} names={names} />
+          {activity.data.items.slice(0, 3).map((j) => (
+            <ActivityItem key={j.id} j={j} names={t ? { [t.instanceId]: "Agent" } : {}} />
           ))}
         </Card>
       ) : (
@@ -145,12 +83,9 @@ export default function Dashboard() {
 }
 
 function TopBar({ name }: { name: string }) {
-  const health = useHealth();
   const photo = telegramUser()?.photo_url;
-  const engine = health.data?.agentEngine;
-  const tone = engine ? (engine.connected && engine.entriesEnabled ? "bg-primary" : engine.connected ? "bg-warning" : "bg-destructive") : "";
   return (
-    <header className="flex items-center justify-between gap-3 pb-4 pt-4">
+    <header className="flex items-center justify-between gap-3 pb-2 pt-4">
       <Link href="/profile" className="flex min-w-0 items-center gap-3" aria-label="Profile">
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -158,17 +93,9 @@ function TopBar({ name }: { name: string }) {
         ) : (
           <span className="grid size-10 shrink-0 place-items-center rounded-full bg-surface-raised text-body font-semibold">{name.slice(0, 1).toUpperCase()}</span>
         )}
-        <div className="min-w-0">
-          <div className="flex items-center gap-0.5 text-body font-semibold">
-            <span className="truncate">{name}</span>
-            <Icon icon={ArrowRight01Icon} size={16} className="shrink-0 text-muted-foreground" />
-          </div>
-          {engine && (
-            <div className="flex items-center gap-1.5 text-caption text-muted-foreground">
-              <span className={`size-1.5 rounded-full ${tone}`} />
-              {engine.connected ? (engine.entriesEnabled ? "Trading on" : "New trades paused") : "Trading offline"}
-            </div>
-          )}
+        <div className="flex min-w-0 items-center gap-0.5 text-body font-semibold">
+          <span className="truncate">{name}</span>
+          <Icon icon={ArrowRight01Icon} size={16} className="shrink-0 text-muted-foreground" />
         </div>
       </Link>
       <div className="flex shrink-0 gap-2">
@@ -183,49 +110,94 @@ function TopBar({ name }: { name: string }) {
   );
 }
 
-function Onboarding() {
+/** Deposit, Withdraw and Invite as three round buttons under the circle. */
+function QuickActions() {
   const openDeposit = useOpenDeposit();
-  const steps: { title: string; body: string; href?: string }[] = [
-    { title: "Deposit", body: "Any token, held as USDT" },
-    { title: "Pick an agent", body: "Set its budget", href: "/agents#choose" },
-    { title: "Track results", body: "Every trade, live", href: "/statements" },
-  ];
+  const openWithdraw = useOpenWithdraw();
+  const cls = "group flex flex-col items-center gap-1.5 text-label text-foreground";
+  const dot = "grid size-12 place-items-center rounded-full transition-transform duration-100 group-active:scale-95";
   return (
-    <>
-      <SectionTitle>Get started</SectionTitle>
-      <Card className="p-2">
-        <ol>
-          {steps.map((s, i) => {
-            const cls = "flex w-full items-center gap-3 rounded-md p-3 text-left active:bg-surface-raised";
-            const inner = (
-              <>
-                <span
-                  className={`grid size-9 shrink-0 place-items-center rounded-full text-body-sm font-semibold ${i === 0 ? "bg-primary text-primary-foreground" : "bg-surface-raised text-muted-foreground"}`}
-                >
-                  {i + 1}
-                </span>
-                <div>
-                  <div className="text-body-sm font-semibold">{s.title}</div>
-                  <div className="text-label font-normal text-muted-foreground">{s.body}</div>
-                </div>
-              </>
-            );
-            return (
-              <li key={s.title}>
-                {s.href ? (
-                  <Link href={s.href} className={cls}>
-                    {inner}
-                  </Link>
-                ) : (
-                  <button type="button" onClick={() => openDeposit()} className={cls}>
-                    {inner}
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      </Card>
-    </>
+    <nav className="mt-5 grid grid-cols-3 gap-2" aria-label="Quick actions">
+      <button
+        type="button"
+        className={cls}
+        onClick={() => {
+          haptic.tap();
+          openDeposit();
+        }}
+      >
+        <span className={`${dot} bg-primary text-primary-foreground`}>
+          <Icon icon={ArrowDown02Icon} size={22} />
+        </span>
+        Deposit
+      </button>
+      <button
+        type="button"
+        className={cls}
+        onClick={() => {
+          haptic.tap();
+          openWithdraw();
+        }}
+      >
+        <span className={`${dot} bg-surface-raised`}>
+          <Icon icon={ArrowUp02Icon} size={22} />
+        </span>
+        Withdraw
+      </button>
+      <Link href="/referrals" onClick={() => haptic.tap()} className={cls}>
+        <span className={`${dot} bg-surface-raised`}>
+          <Icon icon={GiftIcon} size={22} />
+        </span>
+        Invite
+      </Link>
+    </nav>
+  );
+}
+
+/**
+ * The critical numbers right under the circle (its warning chip sits with the circle): the agent's value and total
+ * P&L, then what can be withdrawn, open P&L and win rate. Total P&L is realized + open
+ * from the server, never value minus a deposit, and an unknown value stays "—" rather than zero.
+ */
+function AgentSummary({ t }: { t: Trader }) {
+  const st = useStatement("all", t.instanceId);
+  const wr = st.data?.observedWinrate;
+  const open = t.pnl.unrealizedNetEstimate;
+  const total = open == null ? null : add(t.pnl.realizedNet, open);
+
+  return (
+    <Card className="mt-4 p-4">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-caption text-muted-foreground">Agent value (USDT)</div>
+          <div className={`text-display tabular-nums ${t.equity == null ? "text-muted-foreground" : ""}`}>{fmt(t.equity ?? t.bookedEquity)}</div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-caption text-muted-foreground">Total PnL (USDT)</div>
+          <div className={`text-h2 tabular-nums ${toneCls(total)}`}>{fmt(total, 2, { sign: true })}</div>
+        </div>
+      </div>
+      {t.equity == null && <p className="mt-1 text-caption text-warning">Booked value; live prices are unavailable.</p>}
+
+      <dl className="mt-4 grid grid-cols-3 divide-x divide-border border-t border-border pt-3 text-center">
+        <div className="px-1">
+          <dt className="text-caption text-muted-foreground">Withdrawable</dt>
+          <dd className="mt-0.5 truncate text-body-sm font-semibold tabular-nums">{fmt(t.withdrawable)}</dd>
+        </div>
+        <div className="px-1">
+          <dt className="text-caption text-muted-foreground">Open PnL</dt>
+          <dd className={`mt-0.5 truncate text-body-sm font-semibold tabular-nums ${toneCls(open)}`}>{fmt(open, 2, { sign: true })}</dd>
+        </div>
+        <div className="px-1">
+          <dt className="text-caption text-muted-foreground">{st.data ? `Win rate (${st.data.realized.closed_trades})` : "Win rate"}</dt>
+          <dd className="mt-0.5 text-body-sm font-semibold tabular-nums">{wr == null ? "—" : `${Number(wr).toFixed(0)}%`}</dd>
+        </div>
+      </dl>
+      {sign(t.trialPrincipalRemaining) > 0 && (
+        <p className="mt-3 border-t border-border pt-3 text-center text-caption text-muted-foreground">
+          Includes <span className="font-semibold text-foreground tabular-nums">{fmt(t.trialPrincipalRemaining)} USDT</span> Trial fund: it trades, but can&apos;t be withdrawn.
+        </p>
+      )}
+    </Card>
   );
 }

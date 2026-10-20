@@ -1,34 +1,40 @@
 "use client";
-import { useParams } from "next/navigation";
-import { useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { keepPreviousData, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft01Icon, ArrowRight01Icon, Invoice03Icon, PauseIcon, PencilEdit02Icon, PlayIcon, StopIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, ArrowRight01Icon, Invoice03Icon, PencilEdit02Icon } from "@hugeicons/core-free-icons";
 import { API } from "@/lib/api/client";
-import type { AgentInstance, EntryRejection, Statement } from "@/lib/api/types";
-import { fmtAgo, fmtDateTime, fmtTime } from "@/lib/format";
-import { entryRejectionFacts, entryRejectionText, executionState, INSTANCE_FINAL, instanceStatus } from "@/lib/labels";
-import { pollUntil, qk, useHealth, useLedgerSync } from "@/lib/queries";
+import type { AgentInstance, Statement } from "@/lib/api/types";
+import { fmtTime } from "@/lib/format";
+import { executionState, INSTANCE_FINAL, instanceStatus } from "@/lib/labels";
+import { pollUntil, qk, useLedgerSync, useTrader } from "@/lib/queries";
 import { valuationNotes } from "@/lib/valuation";
 import { haptic } from "@/lib/telegram";
 import { maxOpenOf, rrText, targetRROf } from "@/lib/agent-info";
-import { add, fmt, ratio, sign, sub } from "@/lib/money";
-import { TradeSlots, useInstanceControl } from "@/components/agents/shared";
+import { fmt, ratio, sub } from "@/lib/money";
+import { Cell, EntryCheck, MoneySplit, toneCls, useRename } from "@/components/agents/shared";
 import { PositionCard } from "@/components/trading/position-card";
 import { Button, IconButton } from "@/components/ui/button";
 import { Field, inputCls, Segmented } from "@/components/ui/controls";
-import { ConfirmDialog } from "@/components/ui/dialog";
 import { Icon } from "@/components/ui/icon";
 import { Card, EmptyState, ErrorState, FlowHeader, ListSkeleton, Notice, Page, Pill, SectionTitle, Skeleton } from "@/components/ui/primitives";
 import { Sheet } from "@/components/ui/sheet";
 
 const PAGE_SIZE = 5;
 
+/** An agent by id. The permanent XENO account lives on /agents; this page is for the history of earlier agents. */
 export default function AgentDetail() {
   const { id } = useParams<{ id: string }>();
-  const q = useQuery({ queryKey: qk.instance(id), queryFn: () => API.instance(id), refetchInterval: pollUntil(INSTANCE_FINAL, 12_000) });
+  const router = useRouter();
+  const trader = useTrader();
+  const permanent = trader.data?.instanceId === id;
+  const q = useQuery({ queryKey: qk.instance(id), queryFn: () => API.instance(id), refetchInterval: pollUntil(INSTANCE_FINAL, 12_000), enabled: !permanent });
+  useEffect(() => {
+    if (permanent) router.replace("/agents");
+  }, [permanent, router]);
 
-  if (q.isPending)
+  if (q.isPending || permanent)
     return (
       <Page nav={false}>
         <FlowHeader title="Agent" />
@@ -93,10 +99,14 @@ function Detail({ inst }: { inst: AgentInstance }) {
       />
 
       <AccountCard inst={inst} statement={statement} />
-      <Controls inst={inst} />
+      {inst.status === "stopping" && (
+        <div className="mt-3">
+          <Notice tone="warn">Closing trades. Settled funds move to your account.</Notice>
+        </div>
+      )}
 
       <div ref={listTop} className="scroll-mt-2" aria-hidden />
-      <SectionTitle href={`/statements?agent=${inst.id}`} linkLabel="Statement">
+      <SectionTitle href="/statements" linkLabel="Statement">
         Positions
       </SectionTitle>
       <Segmented
@@ -159,7 +169,7 @@ function AccountCard({ inst, statement }: { inst: AgentInstance; statement: UseQ
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="text-caption text-muted-foreground">
-            {inst.model_id.toUpperCase()} agent{rr != null && !final ? ` · target R/R ${rrText(rr)}` : ""}
+            Earlier agent{rr != null && !final ? ` · target R/R ${rrText(rr)}` : ""}
           </div>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -188,7 +198,7 @@ function AccountCard({ inst, statement }: { inst: AgentInstance; statement: UseQ
 
       <div className="mt-4 flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-caption text-muted-foreground">{final ? "Returned to you (USDT)" : "Agent value (USDT)"}</div>
+          <div className="text-caption text-muted-foreground">{final ? "Moved to your account (USDT)" : "Agent value (USDT)"}</div>
           {statement.isPending && !final ? <Skeleton className="mt-1 h-9 w-36" /> : <div className="text-display tabular-nums">{fmt(value)}</div>}
         </div>
         <div className="shrink-0 text-right">
@@ -216,83 +226,9 @@ function AccountCard({ inst, statement }: { inst: AgentInstance; statement: UseQ
         </Cell>
         <Cell label={s ? `Win rate (${s.realized.closed_trades})` : "Win rate"}>{wr == null ? "—" : `${Number(wr).toFixed(0)}%`}</Cell>
       </dl>
-      {!final && <Today inst={inst} />}
 
       {!final && <MoneySplit inst={inst} />}
     </Card>
-  );
-}
-
-/** Where the agent's money sits right now, as one bar with a legend. Display only. */
-function MoneySplit({ inst }: { inst: AgentInstance }) {
-  const parts = [
-    { label: "Free", value: inst.cash, cls: "bg-foreground/70" },
-    { label: "In trades", value: add(inst.reserved, inst.exit_fee_reserved ?? "0"), cls: "bg-primary" },
-    { label: "Held for funding", value: inst.funding_reserved ?? "0", cls: "bg-warning" },
-  ].filter((x) => sign(x.value) > 0 || x.label !== "Held for funding");
-  const total = parts.reduce((a, x) => add(a, x.value), "0");
-  return (
-    <div className="mt-4">
-      <div className="flex items-center justify-between">
-        <span className="text-caption text-muted-foreground">Where its money is (USDT)</span>
-        <span className="flex items-center gap-2 text-caption text-muted-foreground">
-          <TradeSlots open={inst.openPositions} max={maxOpenOf(inst)} scanning={inst.status === "active" && inst.executionState === "waiting_for_signal"} />
-          {inst.openPositions} of {maxOpenOf(inst)} open
-        </span>
-      </div>
-      <div className="mt-2 flex h-2 gap-0.5 overflow-hidden rounded-full bg-surface-raised">
-        {sign(total) > 0 && parts.map((x) => <span key={x.label} className={x.cls} style={{ width: `${ratio(x.value, total) * 100}%` }} />)}
-      </div>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-        {parts.map((x) => (
-          <span key={x.label} className="inline-flex items-center gap-1.5 text-caption">
-            <span className={`size-2 rounded-full ${x.cls}`} />
-            <span className="text-muted-foreground">{x.label}</span>
-            <span className="tabular-nums">{fmt(x.value)}</span>
-          </span>
-        ))}
-        {inst.last_tick_at && <span className="ml-auto text-caption text-muted-foreground">Updated {fmtAgo(inst.last_tick_at)}</span>}
-      </div>
-    </div>
-  );
-}
-
-/** Today's entry quota as the API reports it (never counted from the trade list). Resets 00:00 UTC, shown in local time. */
-function Today({ inst }: { inst: AgentInstance }) {
-  if (inst.dailyEntryLimit == null) return null;
-  return (
-    <dl className="mt-3 grid grid-cols-3 gap-3">
-      <Cell label="Trades today">
-        {inst.entriesToday ?? "—"} / {inst.dailyEntryLimit}
-      </Cell>
-      <Cell label="Left today">{inst.remainingDailyEntries ?? "—"}</Cell>
-      <Cell label="Resets at">
-        {inst.dailyLimitResetsAt ? (
-          <time dateTime={inst.dailyLimitResetsAt} title={fmtDateTime(inst.dailyLimitResetsAt)}>
-            {fmtTime(inst.dailyLimitResetsAt)}
-          </time>
-        ) : (
-          "—"
-        )}
-      </Cell>
-    </dl>
-  );
-}
-
-/** Why the last entry check didn't open a trade. Informational only: open trades aren't affected and the agent keeps checking by itself. */
-function EntryCheck({ r, trading }: { r: EntryRejection; trading: boolean }) {
-  const facts = entryRejectionFacts(r);
-  const at = r.details?.checkedAt;
-  return (
-    <div className="mt-3 rounded-md bg-surface-raised p-3">
-      <div className="flex items-center justify-between gap-2 text-caption text-muted-foreground">
-        <span>Last entry check</span>
-        {at && <time dateTime={at}>{fmtAgo(at)}</time>}
-      </div>
-      <div className="mt-0.5 text-body-sm font-medium">{entryRejectionText(r.code)}</div>
-      {facts.length > 0 && <div className="mt-0.5 truncate text-caption text-muted-foreground tabular-nums">{facts.join(" · ")}</div>}
-      <div className="mt-1 text-caption text-muted-foreground">{trading ? "Open trades aren't affected. " : ""}It keeps checking on its own.</div>
-    </div>
   );
 }
 
@@ -320,76 +256,9 @@ function Pager({ page, pages, total, busy, onPage }: { page: number; pages: numb
   );
 }
 
-function Cell({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <dt className="truncate text-caption text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 truncate text-body-sm font-semibold tabular-nums">{children}</dd>
-    </div>
-  );
-}
-
-const toneCls = (v: string | null | undefined) => (sign(v) > 0 ? "text-primary" : sign(v) < 0 ? "text-destructive" : "");
-
-function Controls({ inst }: { inst: AgentInstance }) {
-  const { patch, busy } = useInstanceControl(inst);
-  const health = useHealth();
-  const [confirmStop, setConfirmStop] = useState(false);
-  const canEnter = inst.entriesEnabled && (health.data?.agentEngine.userActivationAvailable ?? true);
-
-  if (INSTANCE_FINAL.has(inst.status))
-    return (
-      <Button as="a" href="/agents" variant="secondary" block className="mt-3">
-        Start a new agent
-      </Button>
-    );
-  if (inst.status === "stopping")
-    return <div className="mt-3"><Notice tone="warn">Closing trades…</Notice></div>;
-
-  return (
-    <div className="mt-3 flex flex-col gap-2.5">
-      <div className="grid grid-cols-2 gap-2.5">
-        {inst.status === "active" ? (
-          <Button variant="secondary" icon={<Icon icon={PauseIcon} size={18} />} loading={busy === "paused"} onClick={() => patch({ status: "paused" })}>
-            Pause
-          </Button>
-        ) : (
-          <Button icon={<Icon icon={PlayIcon} size={18} />} loading={busy === "active"} disabled={!canEnter} onClick={() => patch({ status: "active" })}>
-            {inst.status === "paused" ? "Resume" : "Activate"}
-          </Button>
-        )}
-        <Button variant="danger" icon={<Icon icon={StopIcon} size={18} />} onClick={() => setConfirmStop(true)}>
-          Stop
-        </Button>
-      </div>
-      {!canEnter && inst.status !== "active" && <p className="text-label font-normal text-muted-foreground">Trading paused platform-wide.</p>}
-
-      <ConfirmDialog
-        open={confirmStop}
-        onClose={() => setConfirmStop(false)}
-        title={`Stop ${inst.name}?`}
-        description={
-          <>
-            <p>
-              Open trades close and funds return to your balance. This can&apos;t be undone.
-            </p>
-            {inst.status === "active" && <p>For a break, use Pause.</p>}
-          </>
-        }
-        confirmLabel="Stop agent"
-        cancelLabel="Keep running"
-        busy={busy === "stopping"}
-        onConfirm={async () => {
-          if (await patch({ status: "stopping" })) setConfirmStop(false);
-        }}
-      />
-    </div>
-  );
-}
-
 function RenameSheet({ inst, open, onClose }: { inst: AgentInstance; open: boolean; onClose: () => void }) {
   const [name, setName] = useState(inst.name);
-  const { patch, busy } = useInstanceControl(inst);
+  const { rename, busy } = useRename(inst);
   const valid = name.trim().length > 0 && name.trim().length <= 60 && name.trim() !== inst.name;
   return (
     <Sheet open={open} onClose={onClose} title="Rename agent">
@@ -397,13 +266,13 @@ function RenameSheet({ inst, open, onClose }: { inst: AgentInstance; open: boole
         className="flex flex-col gap-4"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (valid && (await patch({ name: name.trim() }))) onClose();
+          if (valid && (await rename(name.trim()))) onClose();
         }}
       >
         <Field label="Name" error={name.trim().length > 60 ? "60 characters max" : null}>
           {(id) => <input id={id} autoFocus value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />}
         </Field>
-        <Button type="submit" size="lg" block disabled={!valid} loading={busy === "name"}>
+        <Button type="submit" size="lg" block disabled={!valid} loading={busy}>
           Save name
         </Button>
       </form>

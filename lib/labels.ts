@@ -1,7 +1,6 @@
 import { ApiError } from "./api/session";
-import type { AgentInstance, EntryRejection } from "./api/types";
+import type { EntryRejection } from "./api/types";
 import { API_BASE } from "./env";
-import { fmtTime } from "./format";
 import { fmt } from "./money";
 
 export type Tone = "ok" | "pending" | "bad" | "idle" | "info";
@@ -62,8 +61,8 @@ const WITHDRAWAL: Record<string, Label> = {
   signed: { label: "Sending", tone: "pending" },
   broadcast: { label: "On its way", tone: "pending", hint: "Usually arrives in a few minutes." },
   confirmed: { label: "Completed", tone: "ok" },
-  expired: { label: "Expired", tone: "idle", hint: "Code expired. Funds returned." },
-  cancelled: { label: "Cancelled", tone: "idle", hint: "Too many wrong codes. Funds returned." },
+  expired: { label: "Expired", tone: "idle", hint: "Code expired. Funds returned to your account." },
+  cancelled: { label: "Cancelled", tone: "idle", hint: "Too many wrong codes. Funds returned to your account." },
   failed: { label: "Failed", tone: "bad" },
   review: { label: "Under review", tone: "info" },
 };
@@ -72,6 +71,7 @@ export const INSTANCE_FINAL = new Set(["stopped", "expired"]);
 
 const JOURNAL: Record<string, string> = {
   deposit: "Deposit",
+  trial_grant: "Trial fund",
   allocation: "Allocated to agent",
   capital_release: "Returned from agent",
   trade_reserve: "Trade margin",
@@ -136,14 +136,6 @@ export function entryRejectionFacts(r: EntryRejection): string[] {
   if (r.code === "gross_rr" && d.grossTargetRR != null) out.push(`target R/R ${rr(d.grossTargetRR)}`);
   if (typeof d.bestLeverageWithinRisk === "number") out.push(`at ${d.bestLeverageWithinRisk}×`);
   return out.filter((x): x is string => !!x);
-}
-
-/** What a running agent is doing, plus today's entries left or the daily-loss stop, for one-line rows. */
-export function activityLine(inst: AgentInstance): string {
-  const s = executionState(inst.executionState);
-  if (inst.dailyRiskHalted) return `${s} · daily loss limit, new trades ${inst.dailyLimitResetsAt ? `from ${fmtTime(inst.dailyLimitResetsAt)}` : "tomorrow (UTC)"}`;
-  if (inst.remainingDailyEntries != null && inst.dailyEntryLimit != null) return `${s} · ${inst.remainingDailyEntries} of ${inst.dailyEntryLimit} trades left today`;
-  return s;
 }
 
 /** Toast-ready text for any thrown error. */
