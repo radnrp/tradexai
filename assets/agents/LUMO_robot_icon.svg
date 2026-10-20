@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- New palette for LUMO: purple / cyan / aqua to separate it from EVO -->
+    <linearGradient id="lumoAccent" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5B4BFF"/>
+      <stop offset="45%" stop-color="#00CFFF"/>
+      <stop offset="100%" stop-color="#8CFFDA"/>
+    </linearGradient>
+
+    <linearGradient id="lumoAccent2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A56BFF"/>
+      <stop offset="55%" stop-color="#38E8FF"/>
+      <stop offset="100%" stop-color="#B8FFF2"/>
+    </linearGradient>
+
+    <linearGradient id="shell" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="58%" stop-color="#EEF5FF"/>
+      <stop offset="100%" stop-color="#D5DEEE"/>
+    </linearGradient>
+
+    <linearGradient id="visor" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A1123"/>
+      <stop offset="100%" stop-color="#040814"/>
+    </linearGradient>
+
+    <radialGradient id="lightOrb" cx="45%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#EFFFFF"/>
+      <stop offset="32%" stop-color="#8CFFDA"/>
+      <stop offset="72%" stop-color="#00CFFF"/>
+      <stop offset="100%" stop-color="#5B4BFF"/>
+    </radialGradient>
+
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#091228" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <!-- Floating halo / signature ring -->
+  <ellipse cx="512" cy="828" rx="168" ry="34"
+           fill="none" stroke="url(#lumoAccent)" stroke-width="18" opacity="0.85"
+           transform="rotate(-10 512 828)"/>
+
+  <!-- Soft light orb to make LUMO distinct -->
+  <circle cx="770" cy="310" r="74" fill="url(#lightOrb)" opacity="0.92"/>
+  <circle cx="770" cy="310" r="74" fill="none" stroke="#F5FFFF" stroke-width="6" opacity="0.65"/>
+  <path d="M770 273 L783 298 L808 310 L783 322 L770 347 L757 322 L732 310 L757 298 Z" fill="#FFFFFF"/>
+
+  <!-- Main body group -->
+  <g filter="url(#shadow)">
+    <!-- Asymmetric antenna/crescent -->
+    <path d="M455 188
+             C438 134 480 96 530 105
+             C573 112 601 149 603 190
+             C575 168 546 157 514 157
+             C493 157 473 161 455 188 Z"
+          fill="url(#lumoAccent2)"/>
+
+    <!-- Side flares instead of round ear pods -->
+    <path d="M276 356 C245 342 222 320 214 286 C248 292 286 315 312 344 Z"
+          fill="url(#lumoAccent2)"/>
+    <path d="M748 356 C779 342 802 320 810 286 C776 292 738 315 712 344 Z"
+          fill="url(#lumoAccent2)"/>
+
+    <!-- Lantern-like head -->
+    <path d="M357 214
+             C404 183 458 170 512 170
+             C566 170 620 183 667 214
+             C721 250 752 312 752 381
+             L752 459
+             C752 542 687 608 604 614
+             L420 614
+             C337 608 272 542 272 459
+             L272 381
+             C272 312 303 250 357 214 Z"
+          fill="url(#shell)" stroke="#DAE6F5" stroke-width="9"/>
+
+    <!-- Visor different from EVO: taller, mask-like -->
+    <path d="M342 288
+             C381 252 439 236 512 236
+             C585 236 643 252 682 288
+             C702 307 714 335 714 368
+             L714 424
+             C714 483 666 531 607 531
+             L417 531
+             C358 531 310 483 310 424
+             L310 368
+             C310 335 322 307 342 288 Z"
+          fill="url(#visor)" stroke="#13DDF3" stroke-width="6"/>
+
+    <!-- Eyes: starry / tilted and unique -->
+    <path d="M405 370
+             C429 336 473 336 496 370
+             C476 392 425 397 405 370 Z"
+          fill="url(#lumoAccent)"/>
+    <path d="M528 370
+             C551 336 595 336 619 370
+             C599 397 548 392 528 370 Z"
+          fill="url(#lumoAccent2)"/>
+
+    <!-- Small glowing nose/sensor -->
+    <circle cx="512" cy="414" r="10" fill="#8DFFF1"/>
+
+    <!-- Smile -->
+    <path d="M465 456 C483 479 541 479 559 456" fill="none" stroke="#8DF7FF" stroke-width="12" stroke-linecap="round"/>
+
+    <!-- Neck -->
+    <rect x="469" y="608" width="86" height="54" rx="22" fill="#091223"/>
+
+    <!-- Bell / teardrop body -->
+    <path d="M404 675
+             C442 652 478 642 512 642
+             C546 642 582 652 620 675
+             C656 697 685 731 694 774
+             C709 845 656 908 581 918
+             L443 918
+             C368 908 315 845 330 774
+             C339 731 368 697 404 675 Z"
+          fill="url(#shell)" stroke="#DAE6F5" stroke-width="9"/>
+
+    <!-- Center chest window -->
+    <path d="M446 723
+             C468 702 489 694 512 694
+             C535 694 556 702 578 723
+             C566 764 543 786 512 804
+             C481 786 458 764 446 723 Z"
+          fill="#091323"/>
+
+    <!-- Inner chest light -->
+    <path d="M485 729 L512 756 L539 729 L527 729 L512 744 L497 729 Z" fill="url(#lumoAccent)"/>
+
+    <!-- Compact arms -->
+    <path d="M387 724
+             C345 728 313 752 297 787
+             C286 813 294 840 316 853
+             C338 867 365 856 379 832
+             L409 781
+             C423 757 412 722 387 724 Z"
+          fill="url(#shell)" stroke="#DAE6F5" stroke-width="8"/>
+
+    <path d="M637 724
+             C679 728 711 752 727 787
+             C738 813 730 840 708 853
+             C686 867 659 856 645 832
+             L615 781
+             C601 757 612 722 637 724 Z"
+          fill="url(#shell)" stroke="#DAE6F5" stroke-width="8"/>
+
+    <!-- Hands more paddle-like -->
+    <ellipse cx="338" cy="828" rx="34" ry="30" fill="#081323"/>
+    <ellipse cx="686" cy="828" rx="34" ry="30" fill="#081323"/>
+
+    <!-- Small floating spark between robot and orb -->
+    <path d="M673 342 L682 360 L700 369 L682 378 L673 396 L664 378 L646 369 L664 360 Z"
+          fill="#A6FFF5"/>
+  </g>
+</svg>

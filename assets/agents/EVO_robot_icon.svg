@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="brand" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#145CFF"/>
+      <stop offset="38%" stop-color="#00C8FF"/>
+      <stop offset="68%" stop-color="#14E6C2"/>
+      <stop offset="100%" stop-color="#B7FF3C"/>
+    </linearGradient>
+    <linearGradient id="brand2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#B7FF3C"/>
+      <stop offset="42%" stop-color="#14E6C2"/>
+      <stop offset="100%" stop-color="#0A7BFF"/>
+    </linearGradient>
+    <linearGradient id="shell" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="48%" stop-color="#EAF4FF"/>
+      <stop offset="100%" stop-color="#B9CDE7"/>
+    </linearGradient>
+    <linearGradient id="visor" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07101F"/>
+      <stop offset="55%" stop-color="#09182C"/>
+      <stop offset="100%" stop-color="#020812"/>
+    </linearGradient>
+    <linearGradient id="bodyDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A162A"/>
+      <stop offset="100%" stop-color="#030912"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="22" flood-color="#001224" flood-opacity="0.35"/>
+    </filter>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- rear fins -->
+  <path d="M269 327 C230 286 214 246 229 213 C254 221 296 244 337 289 L319 359 Z" fill="url(#brand2)"/>
+  <path d="M755 327 C794 286 810 246 795 213 C770 221 728 244 687 289 L705 359 Z" fill="url(#brand2)"/>
+
+  <!-- side ear modules -->
+  <g filter="url(#softShadow)">
+    <rect x="183" y="375" width="126" height="210" rx="60" fill="url(#shell)" stroke="#D9E8F8" stroke-width="6"/>
+    <rect x="715" y="375" width="126" height="210" rx="60" fill="url(#shell)" stroke="#D9E8F8" stroke-width="6"/>
+    <rect x="201" y="401" width="90" height="158" rx="42" fill="url(#bodyDark)"/>
+    <rect x="733" y="401" width="90" height="158" rx="42" fill="url(#bodyDark)"/>
+    <circle cx="246" cy="480" r="31" fill="none" stroke="url(#brand)" stroke-width="12"/>
+    <circle cx="778" cy="480" r="31" fill="none" stroke="url(#brand)" stroke-width="12"/>
+  </g>
+
+  <!-- head shell -->
+  <g filter="url(#softShadow)">
+    <path d="M330 251
+             C382 205 447 188 512 188
+             C577 188 642 205 694 251
+             C738 290 764 341 764 399
+             L764 505
+             C764 584 699 649 620 649
+             L404 649
+             C325 649 260 584 260 505
+             L260 399
+             C260 341 286 290 330 251 Z"
+          fill="url(#shell)" stroke="#DDEBFA" stroke-width="8"/>
+
+    <!-- top glass -->
+    <path d="M387 238 C425 214 468 204 512 204 C556 204 599 214 637 238
+             C617 270 590 288 557 298 L467 298
+             C434 288 407 270 387 238 Z"
+          fill="url(#brand)" opacity="0.95"/>
+
+    <!-- visor -->
+    <rect x="311" y="302" width="402" height="270" rx="112" fill="url(#visor)" stroke="#0DE0E8" stroke-width="6"/>
+    <path d="M348 346 C401 319 621 315 678 346" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="18" stroke-linecap="round"/>
+
+    <!-- eyes -->
+    <path d="M391 428 C420 391 461 390 491 428 C468 463 414 463 391 428 Z"
+          fill="url(#brand)" filter="url(#glow)"/>
+    <path d="M533 428 C563 390 604 391 633 428 C610 463 556 463 533 428 Z"
+          fill="url(#brand2)" filter="url(#glow)"/>
+
+    <!-- smile -->
+    <path d="M467 496 C488 517 536 517 557 496
+             C554 534 531 553 512 553
+             C493 553 470 534 467 496 Z"
+          fill="#19DFF1" opacity="0.95"/>
+  </g>
+
+  <!-- neck -->
+  <rect x="453" y="630" width="118" height="74" rx="28" fill="url(#bodyDark)"/>
+
+  <!-- body -->
+  <g filter="url(#softShadow)">
+    <path d="M360 689
+             C402 657 458 641 512 641
+             C566 641 622 657 664 689
+             C707 722 730 770 722 822
+             C713 882 658 924 594 930
+             L430 930
+             C366 924 311 882 302 822
+             C294 770 317 722 360 689 Z"
+          fill="url(#shell)" stroke="#DCE9F6" stroke-width="8"/>
+
+    <!-- chest plate -->
+    <path d="M392 716 L512 837 L632 716
+             C604 689 559 675 512 675
+             C465 675 420 689 392 716 Z"
+          fill="url(#bodyDark)"/>
+
+    <!-- chest emblem -->
+    <path d="M449 724
+             L512 788
+             L575 724
+             L543 724
+             L512 755
+             L481 724 Z"
+          fill="url(#brand)" filter="url(#glow)"/>
+  </g>
+
+  <!-- arms -->
+  <g filter="url(#softShadow)">
+    <path d="M305 722 C258 729 221 758 204 801 C192 832 202 866 229 881
+             C258 897 292 881 306 853 L345 775 C354 753 336 717 305 722 Z"
+          fill="url(#shell)" stroke="#DDEBFA" stroke-width="7"/>
+    <path d="M719 722 C766 729 803 758 820 801 C832 832 822 866 795 881
+             C766 897 732 881 718 853 L679 775 C670 753 688 717 719 722 Z"
+          fill="url(#shell)" stroke="#DDEBFA" stroke-width="7"/>
+    <circle cx="253" cy="825" r="31" fill="url(#bodyDark)"/>
+    <circle cx="771" cy="825" r="31" fill="url(#bodyDark)"/>
+    <circle cx="253" cy="825" r="18" fill="url(#brand)"/>
+    <circle cx="771" cy="825" r="18" fill="url(#brand2)"/>
+  </g>
+</svg>

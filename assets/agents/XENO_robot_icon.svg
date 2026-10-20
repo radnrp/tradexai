@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="xenoAccent" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#304BFF"/>
+      <stop offset="45%" stop-color="#00D2FF"/>
+      <stop offset="78%" stop-color="#8A6BFF"/>
+      <stop offset="100%" stop-color="#C67BFF"/>
+    </linearGradient>
+    <linearGradient id="xenoAccent2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C67BFF"/>
+      <stop offset="55%" stop-color="#6D7CFF"/>
+      <stop offset="100%" stop-color="#69F0FF"/>
+    </linearGradient>
+    <linearGradient id="shell" x1="12%" y1="0%" x2="88%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="60%" stop-color="#EDF3FF"/>
+      <stop offset="100%" stop-color="#D6E0EF"/>
+    </linearGradient>
+    <linearGradient id="visor" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A1022"/>
+      <stop offset="100%" stop-color="#040711"/>
+    </linearGradient>
+  </defs>
+
+  <ellipse cx="512" cy="860" rx="180" ry="28" fill="none" stroke="url(#xenoAccent)" stroke-width="16" opacity="0.78"/>
+
+  <path d="M394 196 C372 145 402 112 454 113 C450 156 437 190 410 220 Z" fill="url(#xenoAccent2)"/>
+  <path d="M630 196 C652 145 622 112 570 113 C574 156 587 190 614 220 Z" fill="url(#xenoAccent2)"/>
+
+  <path d="M251 350 L312 316 L335 370 L286 417 Z" fill="url(#shell)" stroke="#D7E4F3" stroke-width="8"/>
+  <path d="M773 350 L712 316 L689 370 L738 417 Z" fill="url(#shell)" stroke="#D7E4F3" stroke-width="8"/>
+  <circle cx="304" cy="364" r="20" fill="none" stroke="url(#xenoAccent)" stroke-width="10"/>
+  <circle cx="720" cy="364" r="20" fill="none" stroke="url(#xenoAccent)" stroke-width="10"/>
+
+  <path d="M370 220
+           C416 190 463 175 512 175
+           C561 175 608 190 654 220
+           C709 256 742 318 742 389
+           C742 455 714 510 663 548
+           C622 579 570 595 512 595
+           C454 595 402 579 361 548
+           C310 510 282 455 282 389
+           C282 318 315 256 370 220 Z"
+        fill="url(#shell)" stroke="#D8E6F4" stroke-width="9"/>
+
+  <path d="M474 215 L512 253 L550 215 L574 215 L530 272 L574 329 L550 329 L512 290 L474 329 L450 329 L494 272 L450 215 Z"
+        fill="url(#xenoAccent)"/>
+
+  <path d="M343 302
+           C389 262 446 246 512 246
+           C578 246 635 262 681 302
+           L648 448
+           C638 492 598 523 553 523
+           L471 523
+           C426 523 386 492 376 448 Z"
+        fill="url(#visor)" stroke="#2EE0FF" stroke-width="6"/>
+
+  <path d="M410 384 L472 360 L452 409 L390 425 Z" fill="url(#xenoAccent2)"/>
+  <path d="M614 384 L552 360 L572 409 L634 425 Z" fill="url(#xenoAccent)"/>
+
+  <path d="M466 463 C492 477 532 477 558 463" fill="none" stroke="#89EDFF" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="512" cy="438" r="7" fill="#A9F4FF"/>
+
+  <rect x="468" y="590" width="88" height="52" rx="20" fill="#091123"/>
+
+  <path d="M408 668 L512 628 L616 668 L646 798 L512 892 L378 798 Z"
+        fill="url(#shell)" stroke="#D7E4F3" stroke-width="9"/>
+
+  <path d="M447 695 L512 667 L577 695 L594 776 L512 835 L430 776 Z" fill="#081121"/>
+
+  <path d="M476 712 L512 747 L548 712 L565 712 L525 758 L565 805 L548 805 L512 768 L476 805 L459 805 L499 758 L459 712 Z"
+        fill="url(#xenoAccent)"/>
+
+  <path d="M381 708 C333 714 298 742 283 784 C273 812 283 842 308 855 C332 868 360 854 374 830 L403 777 C416 754 409 706 381 708 Z"
+        fill="url(#shell)" stroke="#D7E4F3" stroke-width="8"/>
+  <path d="M643 708 C691 714 726 742 741 784 C751 812 741 842 716 855 C692 868 664 854 650 830 L621 777 C608 754 615 706 643 708 Z"
+        fill="url(#shell)" stroke="#D7E4F3" stroke-width="8"/>
+
+  <path d="M306 840 L335 800 L371 823 L342 866 Z" fill="#081121"/>
+  <path d="M718 840 L689 800 L653 823 L682 866 Z" fill="#081121"/>
+
+  <path d="M736 214 L786 248 L758 307 L702 292 L694 240 Z" fill="url(#xenoAccent2)" opacity="0.95"/>
+  <path d="M238 214 L188 248 L216 307 L272 292 L280 240 Z" fill="url(#xenoAccent2)" opacity="0.95"/>
+</svg>

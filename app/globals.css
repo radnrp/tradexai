@@ -1,0 +1,138 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* design.md §3–5: the only palette, type scale and radius scale. No arbitrary colors elsewhere. */
+@theme {
+  --color-background: #181a1c;
+  --color-surface: #1d2022;
+  --color-surface-raised: #24282a;
+  --color-border: #2b3033;
+  --color-foreground: #f6f7f7;
+  --color-muted-foreground: #a0a4a6;
+  --color-subtle: #6b7073; /* disabled / decorative only, never essential text */
+  --color-primary: #02e949;
+  --color-primary-dark: #0d7a39;
+  --color-primary-foreground: #0b0d0e;
+  --color-warning: #ffb648;
+  --color-destructive: #ff6b6b;
+  --color-info: #5b8cff;
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-display: 32px;
+  --text-display--line-height: 38px;
+  --text-display--font-weight: 600;
+  --text-display--letter-spacing: -0.02em;
+  --text-h1: 22px;
+  --text-h1--line-height: 28px;
+  --text-h1--font-weight: 700;
+  --text-h1--letter-spacing: -0.01em;
+  --text-h2: 18px;
+  --text-h2--line-height: 24px;
+  --text-h2--font-weight: 600;
+  --text-body: 15px;
+  --text-body--line-height: 22px;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 20px;
+  --text-label: 12px;
+  --text-label--line-height: 16px;
+  --text-label--font-weight: 500;
+  --text-caption: 11px;
+  --text-caption--line-height: 14px;
+  --text-button: 14px;
+  --text-button--line-height: 18px;
+  --text-button--font-weight: 600;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-ping-soft: ping-soft 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+  @keyframes ping-soft {
+    75%, 100% { transform: scale(2.2); opacity: 0; }
+  }
+}
+
+/* The one gradient in the system: hero / summary cards only. */
+@utility hero-gradient {
+  background:
+    radial-gradient(circle at 88% 30%, rgb(2 233 73 / 0.36), transparent 42%),
+    linear-gradient(135deg, #1d2223 0%, #1e2b24 48%, var(--color-primary-dark) 100%);
+}
+@utility skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-raised) 0%,
+    color-mix(in srgb, var(--color-surface-raised), var(--color-foreground) 6%) 50%,
+    var(--color-surface-raised) 100%
+  );
+  background-size: 200% 100%;
+}
+/* Keeps the touch target at 44×44 even when the visible control is smaller. */
+@utility hit-area {
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+@utility pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px));
+}
+@utility pt-safe {
+  padding-top: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
+}
+/* Room for the fixed 64px bottom nav plus the device inset. */
+@utility pb-nav {
+  padding-bottom: calc(88px + max(env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px)));
+}
+
+* {
+  border-color: var(--color-border);
+}
+html {
+  background: var(--color-background);
+  color-scheme: dark;
+}
+body {
+  min-height: var(--tg-viewport-stable-height, 100dvh);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 22px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
