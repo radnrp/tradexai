@@ -2,6 +2,7 @@
 import { useEffect, useId, useState } from "react";
 import { motion } from "motion/react";
 import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { t } from "@/lib/i18n";
 import { normalizeAmountInput } from "@/lib/money";
 import { haptic } from "@/lib/telegram";
 import { Icon } from "./icon";
@@ -31,7 +32,8 @@ export function Segmented<T extends string>({
               if (!active) haptic.select();
               onChange(o.value);
             }}
-            className={`relative h-9 flex-1 whitespace-nowrap rounded-full px-3 text-label transition-colors duration-200 ${active ? "text-foreground" : "text-muted-foreground"}`}
+            // four or five tabs still fit a 320px screen with the tighter padding
+            className={`relative h-9 flex-1 whitespace-nowrap rounded-full text-label transition-colors duration-200 ${options.length > 4 ? "px-1.5" : options.length > 3 ? "px-2" : "px-3"} ${active ? "text-foreground" : "text-muted-foreground"}`}
           >
             {active && <motion.span layoutId={layoutId} transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }} className="absolute inset-0 rounded-full bg-foreground/12" />}
             <span className="relative">{o.label}</span>
@@ -88,6 +90,7 @@ export function AmountInput({
   unit,
   placeholder = "0.00",
   maxDecimals = 8,
+  size = "md",
 }: {
   id: string;
   value: string;
@@ -95,11 +98,16 @@ export function AmountInput({
   unit: string;
   placeholder?: string;
   maxDecimals?: number;
+  /** sm for tight places like a dialog; md is the full money-form field. */
+  size?: "sm" | "md";
 }) {
   return (
-    <div className="flex h-18 items-center gap-3 rounded-lg border bg-surface px-4 transition-colors focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/12 group-data-invalid/field:border-destructive">
+    <div
+      className={`flex ${size === "sm" ? "h-13" : "h-18"} items-center gap-3 rounded-lg border bg-surface px-4 transition-colors focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/12 group-data-invalid/field:border-destructive`}
+    >
       <input
         id={id}
+        dir="ltr"
         inputMode="decimal"
         autoComplete="off"
         value={value}
@@ -109,7 +117,7 @@ export function AmountInput({
           const [, dec = ""] = v.split(".");
           if (dec.length <= maxDecimals) onChange(v);
         }}
-        className="min-w-0 flex-1 bg-transparent text-[30px] font-semibold tracking-tight tabular-nums outline-none placeholder:text-subtle"
+        className={`min-w-0 flex-1 bg-transparent ${size === "sm" ? "text-[22px]" : "text-[30px]"} font-semibold tracking-tight tabular-nums outline-none placeholder:text-subtle`}
       />
       <span className="shrink-0 rounded-full bg-surface-raised px-3 py-1.5 text-label text-foreground">{unit}</span>
     </div>
@@ -148,7 +156,7 @@ export async function copyText(text: string) {
   haptic.success();
 }
 
-export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+export function CopyButton({ text, label = t("Copy") }: { text: string; label?: string }) {
   const [done, setDone] = useState(false);
   useEffect(() => {
     if (!done) return;
@@ -159,13 +167,13 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
     <button
       type="button"
       onClick={() => copyText(text).then(() => setDone(true))}
-      aria-label={done ? "Copied" : label}
+      aria-label={done ? t("Copied") : label}
       className="hit-area inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-surface-raised px-3 text-label text-foreground"
     >
       <motion.span key={String(done)} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.18 }} className="flex">
         <Icon icon={done ? Tick02Icon : Copy01Icon} size={16} className={done ? "text-primary" : ""} />
       </motion.span>
-      {done ? "Copied" : label}
+      {done ? t("Copied") : label}
     </button>
   );
 }
@@ -182,5 +190,5 @@ export function useCountdown(until: string | null | undefined) {
   const left = until ? Math.max(0, Math.floor((new Date(until).getTime() - now) / 1000)) : 0;
   const mm = String(Math.floor(left / 60)).padStart(2, "0");
   const ss = String(left % 60).padStart(2, "0");
-  return { left, text: left >= 3600 ? `${Math.floor(left / 3600)}h ${Math.floor((left % 3600) / 60)}m` : `${mm}:${ss}` };
+  return { left, text: left >= 3600 ? t("{h}h {m}m", { h: Math.floor(left / 3600), m: Math.floor((left % 3600) / 60) }) : `${mm}:${ss}` };
 }

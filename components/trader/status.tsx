@@ -7,6 +7,7 @@ import xeno from "@/assets/agents/XENO_robot_icon.svg";
 import type { Trader } from "@/lib/api/types";
 import { fmtTime } from "@/lib/format";
 import { type OrbMode, traderState } from "@/lib/trader";
+import { t as tr } from "@/lib/i18n";
 import { useOpenDeposit } from "@/components/deposit/deposit-sheet";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -72,13 +73,13 @@ export function TraderStatusCard({ t, href, orb = 48 }: { t: Trader; href?: stri
           </p>
         )}
       </div>
-      {href && <Icon icon={ArrowRight01Icon} size={18} className="shrink-0 text-muted-foreground" />}
+      {href && <Icon icon={ArrowRight01Icon} size={18} className="rtl:-scale-x-100 shrink-0 text-muted-foreground" />}
     </div>
   );
   return (
     <Card className="p-4">
       {href ? (
-        <Link href={href} className="block transition-opacity duration-100 active:opacity-70" aria-label={`Agent: ${s.title}`}>
+        <Link href={href} className="block transition-opacity duration-100 active:opacity-70" aria-label={tr("Agent: {title}", { title: s.title })}>
           {body}
         </Link>
       ) : (
@@ -86,7 +87,7 @@ export function TraderStatusCard({ t, href, orb = 48 }: { t: Trader; href?: stri
       )}
       {s.cta === "deposit" && (
         <Button size="sm" block className="mt-3.5" icon={<Icon icon={ArrowDown02Icon} size={16} />} onClick={() => openDeposit()}>
-          Deposit
+          {tr("Deposit")}
         </Button>
       )}
     </Card>

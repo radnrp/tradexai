@@ -1,4 +1,5 @@
 // Exact decimal helpers. Server amounts are strings; never run money math through Number.
+import { normalizeDigits } from "./digits.ts";
 
 const DECIMAL = /^-?\d+(\.\d+)?$/;
 const ZERO = BigInt(0);
@@ -6,7 +7,7 @@ const ONE = BigInt(1);
 
 /** Keep digits and the first dot ("1,250.5 " → "1250.5"). */
 export function normalizeAmountInput(raw: string): string {
-  const ascii = raw.replace(/[^\d.]/g, "");
+  const ascii = normalizeDigits(raw).replace(/[^\d.]/g, "");
   const dot = ascii.indexOf(".");
   return dot === -1 ? ascii : ascii.slice(0, dot + 1) + ascii.slice(dot + 1).replace(/\./g, "");
 }
@@ -78,6 +79,19 @@ export function fmt(v: string | null | undefined, dp = 2, opts: { sign?: boolean
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const s = u < ZERO ? "−" : opts.sign && u > ZERO ? "+" : "";
   return s + grouped + (frac ? `.${frac}` : "");
+}
+
+/** Rounded up to `dp` decimals (non-negative v), so an amount to pay is never a hair short: "39.495" → "39.50". */
+export function ceilTo(v: string, dp: number): string {
+  const step = BigInt(10) ** BigInt(8 - dp);
+  const u = toUnits(v);
+  const q = u / step + (u % step > ZERO ? ONE : ZERO);
+  return fromUnits(q, dp);
+}
+
+/** Rounded down to `dp` decimals (non-negative v), so a total shown against a minimum never overstates it: "49.99638471" → "49.99". */
+export function floorTo(v: string, dp: number): string {
+  return fromUnits(toUnits(v) / BigInt(10) ** BigInt(8 - dp), dp);
 }
 
 /** Strip trailing zeros for input prefill ("250.00000000" → "250"). */

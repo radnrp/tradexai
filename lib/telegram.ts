@@ -6,11 +6,14 @@ export interface TgUser {
   last_name?: string;
   username?: string;
   photo_url?: string;
+  /** The language of the Telegram app, e.g. "fa" or "en"; absent on some clients. */
+  language_code?: string;
 }
 
 export interface TgWebApp {
   initData: string;
-  initDataUnsafe: { user?: TgUser; start_param?: string };
+  /** Unsigned: fine for an anonymous open, never an identity. auth_date is new on every real open, so a reload keeps it. */
+  initDataUnsafe: { user?: TgUser; start_param?: string; auth_date?: number };
   version: string;
   platform: string;
   ready(): void;

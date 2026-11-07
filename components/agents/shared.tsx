@@ -12,6 +12,7 @@ import { add, fmt, ratio, sign } from "@/lib/money";
 import { useInvalidateLedger } from "@/lib/queries";
 import { haptic } from "@/lib/telegram";
 import { usePendingAction } from "@/lib/use-pending-action";
+import { t, type Key } from "@/lib/i18n";
 
 /** One bar per trade the agent may hold at once (different coins each); filled = open. Empty bars sweep while it scans for an entry. */
 export function TradeSlots({ open, max, scanning }: { open: number; max: number; scanning: boolean }) {
@@ -49,12 +50,12 @@ export function useRename(inst: Pick<AgentInstance, "id">) {
     try {
       await run({ name }, (b, key) => API.renameInstance(inst.id, b, key));
       haptic.success();
-      toast.success("Name saved");
+      toast.success(t("Name saved"));
       return true;
     } catch (e) {
       haptic.error();
       const d = describeError(e);
-      toast.error(e instanceof ApiError && e.uncertain ? "Result unknown. Retry." : d.title, { description: d.detail });
+      toast.error(e instanceof ApiError && e.uncertain ? t("Result unknown. Retry.") : d.title, { description: d.detail });
       return false;
     } finally {
       setBusy(false);
@@ -66,19 +67,21 @@ export function useRename(inst: Pick<AgentInstance, "id">) {
 
 /** Where the agent's money sits right now, as one bar with a legend. Display only. */
 export function MoneySplit({ inst }: { inst: AgentInstance }) {
-  const parts = [
+  const parts = (
+    [
     { label: "Free", value: inst.cash, cls: "bg-foreground/70" },
     { label: "In trades", value: add(inst.reserved, inst.exit_fee_reserved ?? "0"), cls: "bg-primary" },
     { label: "Held for funding", value: inst.funding_reserved ?? "0", cls: "bg-warning" },
-  ].filter((x) => sign(x.value) > 0 || x.label !== "Held for funding");
+    ] satisfies { label: Key; value: string; cls: string }[]
+  ).filter((x) => sign(x.value) > 0 || x.label !== "Held for funding");
   const total = parts.reduce((a, x) => add(a, x.value), "0");
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between">
-        <span className="text-caption text-muted-foreground">Where its money is (USDT)</span>
+        <span className="text-caption text-muted-foreground">{t("Where its money is (USDT)")}</span>
         <span className="flex items-center gap-2 text-caption text-muted-foreground">
           <TradeSlots open={inst.openPositions} max={maxOpenOf(inst)} scanning={inst.status === "active" && inst.executionState === "waiting_for_signal"} />
-          {inst.openPositions} of {maxOpenOf(inst)} open
+          {t("{open} of {max} open", { open: inst.openPositions, max: maxOpenOf(inst) })}
         </span>
       </div>
       <div className="mt-2 flex h-2 gap-0.5 overflow-hidden rounded-full bg-surface-raised">
@@ -88,11 +91,11 @@ export function MoneySplit({ inst }: { inst: AgentInstance }) {
         {parts.map((x) => (
           <span key={x.label} className="inline-flex items-center gap-1.5 text-caption">
             <span className={`size-2 rounded-full ${x.cls}`} />
-            <span className="text-muted-foreground">{x.label}</span>
+            <span className="text-muted-foreground">{t(x.label)}</span>
             <span className="tabular-nums">{fmt(x.value)}</span>
           </span>
         ))}
-        {inst.last_tick_at && <span className="ml-auto text-caption text-muted-foreground">Updated {fmtAgo(inst.last_tick_at)}</span>}
+        {inst.last_tick_at && <span className="ms-auto text-caption text-muted-foreground">{t("Updated {ago}", { ago: fmtAgo(inst.last_tick_at) })}</span>}
       </div>
     </div>
   );
@@ -105,12 +108,12 @@ export function EntryCheck({ r, trading }: { r: EntryRejection; trading: boolean
   return (
     <div className="mt-3 rounded-md bg-surface-raised p-3">
       <div className="flex items-center justify-between gap-2 text-caption text-muted-foreground">
-        <span>Last entry check</span>
+        <span>{t("Last entry check")}</span>
         {at && <time dateTime={at}>{fmtAgo(at)}</time>}
       </div>
       <div className="mt-0.5 text-body-sm font-medium">{entryRejectionText(r.code)}</div>
-      {facts.length > 0 && <div className="mt-0.5 truncate text-caption text-muted-foreground tabular-nums">{facts.join(" · ")}</div>}
-      <div className="mt-1 text-caption text-muted-foreground">{trading ? "Open trades aren't affected. " : ""}It keeps checking on its own.</div>
+      {facts.length > 0 && <div className="mt-0.5 truncate text-caption rtl:whitespace-normal text-muted-foreground tabular-nums">{facts.join(" · ")}</div>}
+      <div className="mt-1 text-caption text-muted-foreground">{trading ? t("Open trades aren't affected. It keeps checking on its own.") : t("It keeps checking on its own.")}</div>
     </div>
   );
 }
@@ -118,8 +121,10 @@ export function EntryCheck({ r, trading }: { r: EntryRejection; trading: boolean
 export function Cell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="truncate text-caption text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 truncate text-body-sm font-semibold tabular-nums">{children}</dd>
+      <dt className="truncate text-caption text-muted-foreground rtl:whitespace-normal">{label}</dt>
+      <dd className="mt-0.5 truncate text-body-sm font-semibold tabular-nums">
+        <bdi>{children}</bdi>
+      </dd>
     </div>
   );
 }

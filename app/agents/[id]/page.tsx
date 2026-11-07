@@ -13,6 +13,8 @@ import { valuationNotes } from "@/lib/valuation";
 import { haptic } from "@/lib/telegram";
 import { maxOpenOf, rrText, targetRROf } from "@/lib/agent-info";
 import { fmt, ratio, sub } from "@/lib/money";
+import { t } from "@/lib/i18n";
+import { serverText } from "@/lib/i18n/server-text";
 import { Cell, EntryCheck, MoneySplit, toneCls, useRename } from "@/components/agents/shared";
 import { PositionCard } from "@/components/trading/position-card";
 import { Button, IconButton } from "@/components/ui/button";
@@ -37,7 +39,7 @@ export default function AgentDetail() {
   if (q.isPending || permanent)
     return (
       <Page nav={false}>
-        <FlowHeader title="Agent" />
+        <FlowHeader title={t("Agent")} />
         <Skeleton className="mt-3 h-72 rounded-lg" />
         <Skeleton className="mt-4 h-60 rounded-lg" />
       </Page>
@@ -45,7 +47,7 @@ export default function AgentDetail() {
   if (q.isError)
     return (
       <Page nav={false}>
-        <FlowHeader title="Agent" />
+        <FlowHeader title={t("Agent")} />
         <div className="mt-6">
           <ErrorState error={q.error} onRetry={() => q.refetch()} />
         </div>
@@ -91,7 +93,7 @@ function Detail({ inst }: { inst: AgentInstance }) {
         title={inst.name}
         action={
           !final && (
-            <IconButton label="Rename agent" onClick={() => setRenaming(true)}>
+            <IconButton label={t("Rename agent")} onClick={() => setRenaming(true)}>
               <Icon icon={PencilEdit02Icon} size={18} />
             </IconButton>
           )
@@ -101,13 +103,13 @@ function Detail({ inst }: { inst: AgentInstance }) {
       <AccountCard inst={inst} statement={statement} />
       {inst.status === "stopping" && (
         <div className="mt-3">
-          <Notice tone="warn">Closing trades. Settled funds move to your account.</Notice>
+          <Notice tone="warn">{t("Closing trades. Settled funds move to your account.")}</Notice>
         </div>
       )}
 
       <div ref={listTop} className="scroll-mt-2" aria-hidden />
-      <SectionTitle href="/statements" linkLabel="Statement">
-        Positions
+      <SectionTitle href="/statements" linkLabel={t("Statement")}>
+        {t("Positions")}
       </SectionTitle>
       <Segmented
         layoutId="pos-tab"
@@ -117,8 +119,8 @@ function Detail({ inst }: { inst: AgentInstance }) {
           setPage(1);
         }}
         options={[
-          { value: "open", label: `Open (${inst.openPositions})` },
-          { value: "closed", label: "History" },
+          { value: "open", label: t("Open ({n})", { n: inst.openPositions }) },
+          { value: "closed", label: t("History") },
         ]}
       />
       <div className="mt-3 flex flex-col gap-2">
@@ -136,10 +138,10 @@ function Detail({ inst }: { inst: AgentInstance }) {
         ) : (
           <EmptyState
             icon={<Icon icon={Invoice03Icon} size={28} />}
-            title={tab === "open" ? "No open positions" : "No closed positions yet"}
+            title={tab === "open" ? t("No open positions") : t("No closed positions yet")}
             body={
               tab === "open" && !final
-                ? `It waits for a setup that passes its risk checks, so a trade may not open right away. Up to ${maxOpenOf(inst)} can be open at once, each in a different coin.`
+                ? t("It waits for a setup that passes its risk checks, so a trade may not open right away. Up to {n} can be open at once, each in a different coin.", { n: maxOpenOf(inst) })
                 : undefined
             }
           />
@@ -169,7 +171,7 @@ function AccountCard({ inst, statement }: { inst: AgentInstance; statement: UseQ
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="text-caption text-muted-foreground">
-            Earlier agent{rr != null && !final ? ` · target R/R ${rrText(rr)}` : ""}
+            {rr != null && !final ? t("Earlier agent · target R/R {rr}", { rr: rrText(rr) }) : t("Earlier agent")}
           </div>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -189,22 +191,24 @@ function AccountCard({ inst, statement }: { inst: AgentInstance; statement: UseQ
       {st.hint && <p className="mt-2 text-caption text-muted-foreground">{st.hint}</p>}
       {!final && inst.dailyRiskHalted && (
         <p className="mt-2 text-caption text-warning">
-          Daily loss limit reached: no new trades until the next UTC day{inst.dailyLimitResetsAt ? ` (${fmtTime(inst.dailyLimitResetsAt)} your time)` : ""}. Open trades are still managed.
+          {inst.dailyLimitResetsAt
+            ? t("Daily loss limit reached: no new trades until the next UTC day ({time} your time). Open trades are still managed.", { time: fmtTime(inst.dailyLimitResetsAt) })
+            : t("Daily loss limit reached: no new trades until the next UTC day. Open trades are still managed.")}
         </p>
       )}
       {inst.blocked_reason && <p className="mt-2 text-caption text-warning">{inst.blocked_reason.replace(/_/g, " ")}</p>}
-      {inst.last_error && <p className="mt-2 text-caption text-destructive">{inst.last_error}</p>}
+      {inst.last_error && <p className="mt-2 text-caption text-destructive [unicode-bidi:plaintext]">{serverText(inst.last_error)}</p>}
       {!final && inst.status !== "stopping" && inst.entryRejection && <EntryCheck r={inst.entryRejection} trading={inst.openPositions > 0} />}
 
       <div className="mt-4 flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-caption text-muted-foreground">{final ? "Moved to your account (USDT)" : "Agent value (USDT)"}</div>
-          {statement.isPending && !final ? <Skeleton className="mt-1 h-9 w-36" /> : <div className="text-display tabular-nums">{fmt(value)}</div>}
+          <div className="text-caption text-muted-foreground">{final ? t("Moved to your account (USDT)") : t("Agent value (USDT)")}</div>
+          {statement.isPending && !final ? <Skeleton className="mt-1 h-9 w-36" /> : <div className="text-display tabular-nums"><bdi>{fmt(value)}</bdi></div>}
         </div>
-        <div className="shrink-0 text-right">
-          <div className="text-caption text-muted-foreground">Total PnL (USDT)</div>
-          <div className={`text-h2 tabular-nums ${tone}`}>{fmt(pnl, 2, { sign: true })}</div>
-          <div className={`text-caption tabular-nums ${tone}`}>{pnlPct == null ? "—" : `${pnlPct > 0 ? "+" : pnlPct < 0 ? "−" : ""}${Math.abs(pnlPct).toFixed(2)}% of ${fmt(inst.initial_capital, 0)} USDT`}</div>
+        <div className="shrink-0 text-end">
+          <div className="text-caption text-muted-foreground">{t("Total PnL (USDT)")}</div>
+          <div className={`text-h2 tabular-nums ${tone}`}><bdi>{fmt(pnl, 2, { sign: true })}</bdi></div>
+          <div className={`text-caption tabular-nums ${tone}`}>{pnlPct == null ? "—" : t("{pct} of {cap} USDT", { pct: `${pnlPct > 0 ? "+" : pnlPct < 0 ? "−" : ""}${Math.abs(pnlPct).toFixed(2)}%`, cap: fmt(inst.initial_capital, 0) })}</div>
         </div>
       </div>
       {!final && s && s.valuation.status !== "complete" && (
@@ -212,19 +216,19 @@ function AccountCard({ inst, statement }: { inst: AgentInstance; statement: UseQ
           {valuationNotes(s).messages.map((m) => (
             <p key={m} className="mt-1.5 text-caption text-warning">{m}</p>
           ))}
-          {s.equity == null && <p className="mt-1.5 text-caption text-muted-foreground">Showing booked balance without open trades, not a final value.</p>}
+          {s.equity == null && <p className="mt-1.5 text-caption text-muted-foreground">{t("Showing booked balance without open trades, not a final value.")}</p>}
         </>
       )}
-      {statement.isError && <p className="mt-1.5 text-caption text-muted-foreground">Value unavailable. Retrying…</p>}
+      {statement.isError && <p className="mt-1.5 text-caption text-muted-foreground">{t("Value unavailable. Retrying…")}</p>}
 
       <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-3">
-        <Cell label="Closed PnL (USDT)">
+        <Cell label={t("Closed PnL (USDT)")}>
           <span className={toneCls(s?.realized.realized_net)}>{fmt(s?.realized.realized_net, 2, { sign: true })}</span>
         </Cell>
-        <Cell label="Open PnL (USDT)">
+        <Cell label={t("Open PnL (USDT)")}>
           <span className={toneCls(s?.unrealizedNetEstimate)}>{fmt(s?.unrealizedNetEstimate, 2, { sign: true })}</span>
         </Cell>
-        <Cell label={s ? `Win rate (${s.realized.closed_trades})` : "Win rate"}>{wr == null ? "—" : `${Number(wr).toFixed(0)}%`}</Cell>
+        <Cell label={s ? t("Win rate ({n})", { n: s.realized.closed_trades }) : t("Win rate")}>{wr == null ? "—" : `${Number(wr).toFixed(0)}%`}</Cell>
       </dl>
 
       {!final && <MoneySplit inst={inst} />}
@@ -239,18 +243,18 @@ function Pager({ page, pages, total, busy, onPage }: { page: number; pages: numb
     onPage(to);
   };
   return (
-    <nav aria-label="Positions pages" className="mt-1 flex items-center justify-between gap-2">
-      <IconButton label="Previous page" disabled={page <= 1 || busy} onClick={() => go(page - 1)}>
-        <Icon icon={ArrowLeft01Icon} size={18} />
+    <nav aria-label={t("Positions pages")} className="mt-1 flex items-center justify-between gap-2">
+      <IconButton label={t("Previous page")} disabled={page <= 1 || busy} onClick={() => go(page - 1)}>
+        <Icon icon={ArrowLeft01Icon} size={18} className="rtl:-scale-x-100" />
       </IconButton>
       <div className="text-center" aria-live="polite">
         <div className="text-label font-semibold tabular-nums">
-          Page {page} of {pages}
+          {t("Page {page} of {pages}", { page, pages })}
         </div>
-        <div className="text-caption text-muted-foreground tabular-nums">{total} positions</div>
+        <div className="text-caption text-muted-foreground tabular-nums">{t("{n} positions", { n: total })}</div>
       </div>
-      <IconButton label="Next page" disabled={page >= pages || busy} onClick={() => go(page + 1)}>
-        <Icon icon={ArrowRight01Icon} size={18} />
+      <IconButton label={t("Next page")} disabled={page >= pages || busy} onClick={() => go(page + 1)}>
+        <Icon icon={ArrowRight01Icon} size={18} className="rtl:-scale-x-100" />
       </IconButton>
     </nav>
   );
@@ -261,7 +265,7 @@ function RenameSheet({ inst, open, onClose }: { inst: AgentInstance; open: boole
   const { rename, busy } = useRename(inst);
   const valid = name.trim().length > 0 && name.trim().length <= 60 && name.trim() !== inst.name;
   return (
-    <Sheet open={open} onClose={onClose} title="Rename agent">
+    <Sheet open={open} onClose={onClose} title={t("Rename agent")}>
       <form
         className="flex flex-col gap-4"
         onSubmit={async (e) => {
@@ -269,11 +273,11 @@ function RenameSheet({ inst, open, onClose }: { inst: AgentInstance; open: boole
           if (valid && (await rename(name.trim()))) onClose();
         }}
       >
-        <Field label="Name" error={name.trim().length > 60 ? "60 characters max" : null}>
-          {(id) => <input id={id} autoFocus value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />}
+        <Field label={t("Name")} error={name.trim().length > 60 ? t("60 characters max") : null}>
+          {(id) => <input id={id} dir="auto" autoFocus value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />}
         </Field>
         <Button type="submit" size="lg" block disabled={!valid} loading={busy}>
-          Save name
+          {t("Save name")}
         </Button>
       </form>
     </Sheet>

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { useTrader } from "@/lib/queries";
 import { haptic } from "@/lib/telegram";
+import { t as tr } from "@/lib/i18n";
 import { Trades } from "@/components/statement/trades";
 import { AgentInfoDialog } from "@/components/trader/agent-info";
 import { AgentTour } from "@/components/trader/agent-tour";
@@ -22,7 +23,7 @@ export default function AgentPage() {
   return (
     <Page>
       <PageHeader
-        title="Agent"
+        title={tr("Agent")}
         action={
           t && (
             <button
@@ -34,7 +35,7 @@ export default function AgentPage() {
               className="hit-area inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-surface-raised px-3.5 text-label font-semibold text-foreground"
             >
               <Icon icon={InformationCircleIcon} size={16} />
-              Agent info
+              {tr("Agent info")}
             </button>
           )
         }
@@ -48,7 +49,7 @@ export default function AgentPage() {
         <AgentCard t={t} />
       )}
 
-      <SectionTitle>Trades</SectionTitle>
+      <SectionTitle>{tr("Trades")}</SectionTitle>
       {/* the list brings its own top margin for the Statement page */}
       <div className="[&>div]:mt-0">
         <Trades range="all" showAgent={false} />
@@ -58,7 +59,7 @@ export default function AgentPage() {
         <>
           <AgentInfoDialog t={t} open={info} onClose={() => setInfo(false)} onTutorial={() => setTour(true)} onCalculator={() => setCalc(true)} />
           <AgentTour open={tour} t={t} onClose={() => setTour(false)} />
-          <CalculatorDialog open={calc} onClose={() => setCalc(false)} />
+          <CalculatorDialog open={calc} onClose={() => setCalc(false)} balance={t.balances.nonTrialEquity} />
         </>
       )}
     </Page>

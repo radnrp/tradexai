@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
-import { Award01Icon, ChartLineData01Icon, Home01Icon, Robot01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, ChartLineData01Icon, Home01Icon, Robot01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
+import { t, type Key } from "@/lib/i18n";
 import { haptic } from "@/lib/telegram";
 import { Icon } from "@/components/ui/icon";
 
@@ -11,8 +12,9 @@ const TABS = [
   { href: "/agents", label: "Agent", icon: Robot01Icon },
   { href: "/wallet", label: "Wallet", icon: Wallet01Icon },
   { href: "/statements", label: "Statement", icon: ChartLineData01Icon },
-  { href: "/leaderboard", label: "Leaders", icon: Award01Icon },
-];
+  // the community feed; the route keeps its old name because /activity is the user's own history
+  { href: "/leaderboard", label: "Activity", icon: Activity01Icon },
+] satisfies { href: string; label: Key; icon: unknown }[];
 export const TAB_ROOTS = TABS.map((t) => t.href);
 
 /** Shown on the five root screens only (L0); focused flows get the full screen and a Back. */
@@ -20,7 +22,7 @@ export function BottomNav() {
   const pathname = usePathname();
   if (!TAB_ROOTS.includes(pathname)) return null;
   return (
-    <nav aria-label="Main" className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background">
+    <nav aria-label={t("Main")} className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background">
       <ul className="mx-auto flex h-16 max-w-150 items-stretch">
         {TABS.map(({ href, label, icon }) => {
           const active = pathname === href;
@@ -35,7 +37,7 @@ export function BottomNav() {
                 <motion.span key={String(active)} initial={active ? { scale: 0.94 } : false} animate={{ scale: 1 }} transition={{ duration: 0.18 }} className="flex">
                   <Icon icon={icon} strokeWidth={active ? 2 : 1.5} />
                 </motion.span>
-                {label}
+                {t(label)}
               </Link>
             </li>
           );

@@ -1,5 +1,6 @@
 "use client";
 import { MinusSignIcon, PlusSignIcon, Tick02Icon, ArrowRight02Icon } from "@hugeicons/core-free-icons";
+import { getLang, t } from "@/lib/i18n";
 import { add, cmp, isAmount, normalizeAmountInput, sub, trimZeros } from "@/lib/money";
 import { haptic } from "@/lib/telegram";
 import { Icon } from "@/components/ui/icon";
@@ -38,9 +39,9 @@ export function FlowBar({ dir, from, to }: { dir: Direction; from: End; to: End 
         </div>
       </div>
       <span className={`grid size-7 shrink-0 place-items-center rounded-full ${TONE[dir].solid}`}>
-        <Icon icon={ArrowRight02Icon} size={16} strokeWidth={2} />
+        <Icon icon={ArrowRight02Icon} size={16} strokeWidth={2} className="rtl:-scale-x-100" />
       </span>
-      <div className="flex min-w-0 flex-1 items-center justify-end gap-2.5 text-right">
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-2.5 text-end">
         <div className="min-w-0">
           <div className="text-caption text-muted-foreground">{to.caption}</div>
           <div className="truncate text-label text-foreground">{to.title}</div>
@@ -113,7 +114,8 @@ export function AmountDial({
   step: string;
   prefix?: string;
   unit?: string;
-  quick: { label: string; value: string }[];
+  /** `tag`: a short badge on the pick's top edge ("Recommended"), only from the server's suggestion. */
+  quick: { label: string; value: string; tag?: string }[];
   footer?: React.ReactNode;
   invalid?: boolean;
   disabled?: boolean;
@@ -130,10 +132,11 @@ export function AmountDial({
       <div className={`rounded-lg border bg-surface-raised px-3 pb-3 pt-2.5 transition-colors ${invalid ? "border-destructive" : TONE[dir].focusWithin}`}>
         <div className="text-center text-caption text-muted-foreground">{label}</div>
         <div className="flex items-center gap-2">
-          <StepButton label="Less" icon={MinusSignIcon} disabled={disabled || !value} onClick={() => bump(false)} />
-          <label className="flex min-w-0 flex-1 items-baseline justify-center gap-1 font-semibold tracking-tight tabular-nums">
+          <StepButton label={t("Less")} icon={MinusSignIcon} disabled={disabled || !value} onClick={() => bump(false)} />
+          <label dir="ltr" className="flex min-w-0 flex-1 items-baseline justify-center gap-1 font-semibold tracking-tight tabular-nums">
             {prefix && <span className={`text-muted-foreground ${size}`}>{prefix}</span>}
             <input
+              dir="ltr"
               inputMode="decimal"
               autoComplete="off"
               aria-label={label}
@@ -145,16 +148,18 @@ export function AmountDial({
                 const v = normalizeAmountInput(e.target.value);
                 if ((v.split(".")[1] ?? "").length <= decimals && v.length <= 18) onChange(v);
               }}
-              style={{ width: `${Math.max(1, value.length || 1)}ch` }}
+              // ch is the width of a 0, and Dana's other digits run up to 1.5 times that
+              style={{ width: `${Math.max(1, value.length || 1) * (getLang() === "fa" ? 1.5 : 1)}ch` }}
               className={`min-w-0 bg-transparent text-foreground outline-none placeholder:text-subtle ${size}`}
             />
             {unit && <span className="text-body font-medium text-muted-foreground">{unit}</span>}
           </label>
-          <StepButton label="More" icon={PlusSignIcon} disabled={disabled} onClick={() => bump(true)} />
+          <StepButton label={t("More")} icon={PlusSignIcon} disabled={disabled} onClick={() => bump(true)} />
         </div>
         {footer && <div className="mt-2 flex justify-center">{footer}</div>}
       </div>
-      <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto py-0.5">
+      {/* room above for a tag: the scroll row clips vertically too */}
+      <div className={`no-scrollbar mt-2 flex gap-2 overflow-x-auto ${quick.some((q) => q.tag) ? "pb-0.5 pt-2.5" : "py-0.5"}`}>
         {quick.map((q) => (
           <button
             key={q.label}
@@ -164,11 +169,20 @@ export function AmountDial({
               haptic.select();
               onChange(q.value);
             }}
-            className={`hit-area h-9 flex-1 shrink-0 rounded-full px-3 text-label tabular-nums transition-colors disabled:opacity-40 ${
+            aria-label={q.tag ? t("{label}, {tag}", { label: q.label, tag: q.tag.toLowerCase() }) : undefined}
+            className={`hit-area relative h-9 flex-1 shrink-0 rounded-full px-3 text-label tabular-nums transition-colors disabled:opacity-40 ${
               value === q.value ? "bg-foreground text-background" : "bg-surface-raised text-muted-foreground"
             }`}
           >
             {q.label}
+            {q.tag && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-1.5 text-[9px] font-semibold leading-4 text-primary-foreground"
+              >
+                {q.tag}
+              </span>
+            )}
           </button>
         ))}
       </div>

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { Alert02Icon, AlertCircleIcon, ArrowLeft01Icon, ArrowRight01Icon, InformationCircleIcon, Refresh01Icon } from "@hugeicons/core-free-icons";
 import { ApiError } from "@/lib/api/session";
+import { dirSign, t } from "@/lib/i18n";
 import { fmt, sign } from "@/lib/money";
 import type { Tone } from "@/lib/labels";
 import { describeError } from "@/lib/labels";
@@ -61,9 +62,9 @@ export function Amount({
   const s = sign(value);
   const color = colored ? (s > 0 ? "text-primary" : s < 0 ? "text-destructive" : "") : "";
   return (
-    <span className={`tabular-nums ${color} ${className}`} title={value ?? undefined}>
+    <span dir="ltr" className={`tabular-nums ${color} ${className}`} title={value ?? undefined}>
       {fmt(value, dp, { sign: signed })}
-      {unit && value != null && <span className="ml-1 text-[0.7em] font-medium opacity-70">{unit}</span>}
+      {unit && value != null && <span className="ms-1 text-[0.7em] font-medium opacity-70">{unit}</span>}
     </span>
   );
 }
@@ -95,8 +96,8 @@ export function FlowHeader({ title, action }: { title: string; action?: React.Re
       {nativeBack ? (
         <span />
       ) : (
-        <IconButton label="Back" onClick={() => (window.history.length > 1 ? router.back() : router.push("/"))}>
-          <Icon icon={ArrowLeft01Icon} />
+        <IconButton label={t("Back")} onClick={() => (window.history.length > 1 ? router.back() : router.push("/"))}>
+          <Icon icon={ArrowLeft01Icon} className="rtl:-scale-x-100" />
         </IconButton>
       )}
       <h1 className="truncate text-center text-body font-semibold">{title}</h1>
@@ -109,7 +110,7 @@ export function FlowHeader({ title, action }: { title: string; action?: React.Re
 export function Page({ children, nav = true }: { children: React.ReactNode; nav?: boolean }) {
   return (
     <motion.main
-      initial={nav ? { opacity: 0 } : { opacity: 0, x: 12 }}
+      initial={nav ? { opacity: 0 } : { opacity: 0, x: 12 * dirSign() }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: nav ? 0.18 : 0.24, ease: [0.2, 0, 0, 1] }}
       className={`pt-safe mx-auto w-full max-w-150 px-4 min-[390px]:px-5 ${nav ? "pb-nav" : "pb-10"}`}
@@ -119,14 +120,14 @@ export function Page({ children, nav = true }: { children: React.ReactNode; nav?
   );
 }
 
-export function SectionTitle({ children, href, linkLabel = "See all" }: { children: React.ReactNode; href?: string; linkLabel?: string }) {
+export function SectionTitle({ children, href, linkLabel = t("See all") }: { children: React.ReactNode; href?: string; linkLabel?: string }) {
   return (
     <div className="mb-3 mt-8 flex items-center justify-between px-1">
       <h2 className="text-h2">{children}</h2>
       {href && (
         <Link href={href} className="hit-area flex items-center gap-0.5 text-label text-muted-foreground active:text-foreground">
           {linkLabel}
-          <Icon icon={ArrowRight01Icon} size={16} />
+          <Icon icon={ArrowRight01Icon} size={16} className="rtl:-scale-x-100" />
         </Link>
       )}
     </div>
@@ -147,7 +148,9 @@ export function Row({ label, children, strong }: { label: React.ReactNode; child
   return (
     <div className={`flex min-h-11 items-center justify-between gap-4 py-2.5 text-body-sm ${strong ? "font-semibold" : ""}`}>
       <span className={strong ? "" : "text-muted-foreground"}>{label}</span>
-      <span className="text-right tabular-nums">{children}</span>
+      <span className="text-end tabular-nums">
+        <bdi>{children}</bdi>
+      </span>
     </div>
   );
 }
@@ -187,15 +190,15 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
         <Icon icon={AlertCircleIcon} size={24} />
       </div>
       <div className="mt-3 text-body font-semibold">{title}</div>
-      {detail && <p className="mt-1 max-w-75 text-body-sm text-muted-foreground">{detail}</p>}
+      {detail && <p className="mt-1 max-w-75 text-body-sm text-muted-foreground [unicode-bidi:plaintext]">{detail}</p>}
       {notFound ? (
         <Button as="a" href="/" variant="secondary" size="sm" className="mt-5">
-          Back to home
+          {t("Back to home")}
         </Button>
       ) : (
         onRetry && (
           <Button variant="secondary" size="sm" className="mt-5" icon={<Icon icon={Refresh01Icon} size={16} />} onClick={onRetry}>
-            Try again
+            {t("Try again")}
           </Button>
         )
       )}
@@ -206,7 +209,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 /** Mirrors a list row (icon, two lines, trailing amount) so loading doesn't shift layout. */
 export function ListSkeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="rounded-lg bg-surface px-4" aria-busy aria-label="Loading">
+    <div className="rounded-lg bg-surface px-4" aria-busy aria-label={t("Loading")}>
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-center gap-3 py-3.5">
           <Skeleton className="size-10 rounded-full" />

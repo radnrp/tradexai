@@ -1,7 +1,7 @@
 // Run: npm test
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { add, cmp, div, fmt, fmtPrice, isAmount, mulBps, normalizeAmountInput, ratio, sub, toUnits, trimZeros } from "./money.ts";
+import { add, ceilTo, cmp, floorTo, div, fmt, fmtPrice, isAmount, mulBps, normalizeAmountInput, ratio, sub, toUnits, trimZeros } from "./money.ts";
 
 test("exact add/sub without float drift", () => {
   assert.equal(add("0.1", "0.2"), "0.30000000");
@@ -56,4 +56,22 @@ test("exact division rounds half away from zero", () => {
   assert.equal(div("-2", "3", 2), "-0.67");
   assert.equal(div("0.00000004", "0.00000002", 2), "2.00");
   assert.equal(div("1", "0"), null);
+});
+
+test("ceilTo rounds up to the cent", () => {
+  assert.equal(ceilTo("39.495", 2), "39.50");
+  assert.equal(ceilTo("40.00000000", 2), "40.00");
+  assert.equal(ceilTo("0", 2), "0.00");
+});
+
+test("floorTo rounds down to the cent, so a shown total never overstates what arrived", () => {
+  assert.equal(floorTo("49.99638471", 2), "49.99");
+  assert.equal(floorTo("10.00000000", 2), "10.00");
+  assert.equal(floorTo("0", 2), "0.00");
+});
+
+test("amount input takes a persian keyboard", () => {
+  assert.equal(normalizeAmountInput("۱٬۲۵۰٫۵"), "1250.5");
+  assert.equal(normalizeAmountInput("۲۵۰"), "250");
+  assert.equal(normalizeAmountInput("1,250.5 "), "1250.5");
 });

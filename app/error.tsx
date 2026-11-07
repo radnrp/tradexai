@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { Refresh01Icon } from "@hugeicons/core-free-icons";
+import { t } from "@/lib/i18n";
 import { Logo } from "@/components/shell/logo";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -17,17 +18,17 @@ export default function RouteError({ error, reset }: { error: Error & { digest?:
   return (
     <main className="pt-safe pb-safe flex min-h-dvh flex-col items-center justify-center px-8 text-center">
       <Logo size={56} />
-      <h1 className="mt-6 text-h1">Something went wrong</h1>
-      <p className="mt-2 max-w-xs text-body-sm text-muted-foreground">Reload the app to get the latest version. Your money and trades aren&apos;t affected.</p>
+      <h1 className="mt-6 text-h1">{t("Something went wrong")}</h1>
+      <p className="mt-2 max-w-xs text-body-sm text-muted-foreground">{t("Reload the app to get the latest version. Your money and trades aren't affected.")}</p>
       <div className="mt-8 flex w-full max-w-xs flex-col gap-3">
         <Button size="lg" block icon={<Icon icon={Refresh01Icon} size={18} />} onClick={() => window.location.reload()}>
-          Reload
+          {t("Reload")}
         </Button>
         <Button size="lg" variant="secondary" block onClick={reset}>
-          Try again
+          {t("Try again")}
         </Button>
       </div>
-      {error.digest && <p className="mt-6 font-mono text-caption text-subtle">Ref {error.digest}</p>}
+      {error.digest && <p dir="ltr" className="mt-6 font-mono text-caption text-subtle">{`Ref ${error.digest}`}</p>}
     </main>
   );
 }

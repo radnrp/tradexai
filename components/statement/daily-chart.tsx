@@ -4,16 +4,18 @@ import { motion } from "motion/react";
 import { fmtDayUtc } from "@/lib/format";
 import { cmp } from "@/lib/money";
 import { haptic } from "@/lib/telegram";
+import { t } from "@/lib/i18n";
 import { Amount } from "@/components/ui/primitives";
+import type { DayNet } from "./data";
 
 const MAX_BARS = 30;
 
-/** Profit (up, green) and loss (down, red) per day around a zero line; tap a bar to read it. */
-export function DailyPnlChart({ days }: { days: { day: string; net: string }[] }) {
+/** Personal profit (up, green) and loss (down, red) per day around a zero line; tap a bar to read it. */
+export function DailyPnlChart({ days }: { days: DayNet[] }) {
   const shown = days.slice(-MAX_BARS);
   const [sel, setSel] = useState<number | null>(null);
   const cur = shown[sel ?? shown.length - 1];
-  if (!shown.length) return <p className="py-8 text-center text-body-sm text-muted-foreground">No finished trades in this period.</p>;
+  if (!shown.length) return <p className="py-8 text-center text-body-sm text-muted-foreground">{t("No finished trades in this period.")}</p>;
 
   const max = Math.max(...shown.map((d) => Math.abs(Number(d.net))), 1e-9);
   const green = days.filter((d) => cmp(d.net, "0") > 0).length;
@@ -24,7 +26,7 @@ export function DailyPnlChart({ days }: { days: { day: string; net: string }[] }
         <span className="text-label text-muted-foreground">{fmtDayUtc(cur.day)}</span>
         <Amount value={cur.net} signed colored unit="USDT" className="text-body font-semibold" />
       </div>
-      <div className="relative mt-3 flex h-32 items-stretch gap-0.75" role="list" aria-label="Profit or loss per day">
+      <div dir="ltr" className="relative mt-3 flex h-32 items-stretch gap-0.75" role="list" aria-label={t("Profit or loss per day")}>
         <span className="absolute inset-x-0 top-1/2 h-px bg-border" aria-hidden />
         {shown.map((d, i) => {
           const v = Number(d.net);
@@ -35,7 +37,7 @@ export function DailyPnlChart({ days }: { days: { day: string; net: string }[] }
               key={d.day}
               type="button"
               role="listitem"
-              aria-label={`${fmtDayUtc(d.day)}: ${d.net} USDT`}
+              aria-label={t("{day}: {net} USDT", { day: fmtDayUtc(d.day), net: d.net })}
               onClick={() => {
                 haptic.select();
                 setSel(i);
@@ -55,9 +57,9 @@ export function DailyPnlChart({ days }: { days: { day: string; net: string }[] }
       </div>
       <div className="mt-3 flex justify-between text-caption text-muted-foreground tabular-nums">
         <span>
-          {green} of {days.length} days in profit
+          {t("{green} of {days} days in profit", { green, days: days.length })}
         </span>
-        {days.length > MAX_BARS && <span>Last {MAX_BARS} days shown</span>}
+        {days.length > MAX_BARS && <span>{t("Last {n} days shown", { n: MAX_BARS })}</span>}
       </div>
     </div>
   );

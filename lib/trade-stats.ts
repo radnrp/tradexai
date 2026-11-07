@@ -1,8 +1,11 @@
 import type { Position } from "./api/types";
+import { t } from "./i18n/index.ts";
 import { add, cmp, div, fromUnits, isDecimal, sub, toUnits } from "./money.ts";
+import { actualNet } from "./personal-pnl.ts";
 
 // Exchange-style performance numbers built from closed trades. Money sums stay exact decimals;
 // only ratios (profit factor, drawdown) are plain numbers, and they're display-only.
+// They describe the strategy, so they use each trade's actual result: a loss the Trial grant covered is still a loss.
 
 type Bucket = { key: string; count: number; wins: number; net: string };
 
@@ -32,7 +35,7 @@ export type TradeStats = {
 export const divInt = (v: string, n: number) => fromUnits(toUnits(v) / BigInt(n));
 
 export function tradeStats(trades: Position[]): TradeStats {
-  const closed = trades.filter((p) => p.net_pnl != null).sort((a, b) => time(a) - time(b));
+  const closed = trades.filter((p) => actualNet(p) != null).sort((a, b) => time(a) - time(b));
   let net = "0", grossProfit = "0", grossLoss = "0", fees = "0", volume = "0";
   let wins = 0, losses = 0, even = 0, holdSum = 0, holdN = 0;
   let winStreak = 0, lossStreak = 0, runW = 0, runL = 0;
@@ -40,7 +43,7 @@ export function tradeStats(trades: Position[]): TradeStats {
   const sym = new Map<string, Bucket>(), agent = new Map<string, Bucket>();
 
   for (const p of closed) {
-    const v = p.net_pnl!;
+    const v = actualNet(p)!;
     const s = cmp(v, "0");
     net = add(net, v);
     fees = add(fees, add(p.entry_fee ?? "0", p.exit_fee ?? "0"));
@@ -56,8 +59,8 @@ export function tradeStats(trades: Position[]): TradeStats {
     runL = s < 0 ? runL + 1 : 0;
     winStreak = Math.max(winStreak, runW);
     lossStreak = Math.max(lossStreak, runL);
-    if (!best || cmp(v, best.net_pnl!) > 0) best = p;
-    if (!worst || cmp(v, worst.net_pnl!) < 0) worst = p;
+    if (!best || cmp(v, actualNet(best)!) > 0) best = p;
+    if (!worst || cmp(v, actualNet(worst)!) < 0) worst = p;
     if (p.closed_at) {
       holdSum += new Date(p.closed_at).getTime() - new Date(p.opened_at).getTime();
       holdN++;
@@ -78,8 +81,8 @@ export function tradeStats(trades: Position[]): TradeStats {
     profitFactor: gl > 0 ? Number(grossProfit) / gl : null,
     avgWin: wins ? divInt(grossProfit, wins) : null,
     avgLoss: losses ? divInt(grossLoss, losses) : null,
-    best: best && cmp(best.net_pnl!, "0") > 0 ? best : null,
-    worst: worst && cmp(worst.net_pnl!, "0") < 0 ? worst : null,
+    best: best && cmp(actualNet(best)!, "0") > 0 ? best : null,
+    worst: worst && cmp(actualNet(worst)!, "0") < 0 ? worst : null,
     avgHoldMs: holdN ? holdSum / holdN : null,
     fees,
     volume,
@@ -110,10 +113,10 @@ export function maxDrawdown(values: number[]): number | null {
 
 export function fmtDuration(ms: number): string {
   const m = Math.round(ms / 60_000);
-  if (m < 60) return `${Math.max(1, m)}m`;
+  if (m < 60) return t("{n}m", { n: Math.max(1, m) });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ${m % 60}m`;
-  return `${Math.floor(h / 24)}d ${h % 24}h`;
+  if (h < 24) return t("{h}h {m}m", { h, m: m % 60 });
+  return t("{d}d {h}h", { d: Math.floor(h / 24), h: h % 24 });
 }
 
 /**

@@ -4,6 +4,7 @@ import { MotionConfig } from "motion/react";
 import { Toaster } from "sonner";
 import { ApiError } from "@/lib/api/session";
 import { BootGate } from "./boot-gate";
+import { LanguageProvider, useLanguage } from "./language";
 
 let browserClient: QueryClient | undefined;
 
@@ -26,27 +27,37 @@ function getClient() {
   return (browserClient ??= makeClient());
 }
 
+/** shadcn Sonner: transient, non-critical messages only; critical alerts are Dialogs */
+function AppToaster() {
+  const { phase } = useLanguage();
+  return (
+    <Toaster
+      position="top-center"
+      theme="dark"
+      offset={16}
+      dir={phase.kind === "ready" && phase.lang === "fa" ? "rtl" : "ltr"}
+      style={
+        {
+          "--normal-bg": "var(--color-surface-raised)",
+          "--normal-text": "var(--color-foreground)",
+          "--normal-border": "var(--color-border)",
+          "--border-radius": "var(--radius-md)",
+        } as React.CSSProperties
+      }
+      toastOptions={{ classNames: { toast: "!font-sans", description: "!text-muted-foreground [unicode-bidi:plaintext]" } }}
+    />
+  );
+}
+
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const client = getClient();
   return (
     <QueryClientProvider client={client}>
       <MotionConfig reducedMotion="user" transition={{ type: "spring", stiffness: 420, damping: 36 }}>
-        <BootGate>{children}</BootGate>
-        {/* shadcn Sonner: transient, non-critical messages only; critical alerts are Dialogs */}
-        <Toaster
-          position="top-center"
-          theme="dark"
-          offset={16}
-          style={
-            {
-              "--normal-bg": "var(--color-surface-raised)",
-              "--normal-text": "var(--color-foreground)",
-              "--normal-border": "var(--color-border)",
-              "--border-radius": "var(--radius-md)",
-            } as React.CSSProperties
-          }
-          toastOptions={{ classNames: { toast: "!font-sans", description: "!text-muted-foreground" } }}
-        />
+        <LanguageProvider>
+          <BootGate>{children}</BootGate>
+          <AppToaster />
+        </LanguageProvider>
       </MotionConfig>
     </QueryClientProvider>
   );

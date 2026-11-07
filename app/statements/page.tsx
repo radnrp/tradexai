@@ -5,6 +5,7 @@ import { ChartCandlestickIcon, DashboardSquare01Icon, MoneyExchange01Icon } from
 import type { Range } from "@/lib/api/types";
 import { useStatement } from "@/lib/queries";
 import { haptic } from "@/lib/telegram";
+import { t as tr, type Key } from "@/lib/i18n";
 import { Funding } from "@/components/statement/funding";
 import { Overview } from "@/components/statement/overview";
 import { Trades } from "@/components/statement/trades";
@@ -12,14 +13,14 @@ import { Segmented } from "@/components/ui/controls";
 import { Icon } from "@/components/ui/icon";
 import { ErrorState, Page, PageHeader, Skeleton } from "@/components/ui/primitives";
 
-const RANGES: { value: Range; label: string }[] = [
+const RANGES: { value: Range; label: Key }[] = [
   { value: "7d", label: "7D" },
   { value: "30d", label: "30D" },
   { value: "6m", label: "6M" },
   { value: "all", label: "All" },
 ];
 type Tab = "overview" | "trades" | "funding";
-const TABS: { value: Tab; label: string; icon: Parameters<typeof Icon>[0]["icon"] }[] = [
+const TABS: { value: Tab; label: Key; icon: Parameters<typeof Icon>[0]["icon"] }[] = [
   { value: "overview", label: "Overview", icon: DashboardSquare01Icon },
   { value: "trades", label: "Trades", icon: ChartCandlestickIcon },
   { value: "funding", label: "Funding", icon: MoneyExchange01Icon },
@@ -33,8 +34,8 @@ export default function StatementsPage() {
 
   return (
     <Page>
-      <PageHeader title="Statement" subtitle="Your trading results" />
-      <Segmented layoutId="range" value={range} onChange={setRange} options={RANGES} />
+      <PageHeader title={tr("Statement")} subtitle={tr("Your trading results")} />
+      <Segmented layoutId="range" value={range} onChange={setRange} options={RANGES.map((r) => ({ ...r, label: tr(r.label) }))} />
       <div role="tablist" className="mt-3 flex border-b">
         {TABS.map((t) => (
           <button
@@ -48,7 +49,7 @@ export default function StatementsPage() {
             className={`relative inline-flex h-11 flex-1 items-center justify-center gap-1.5 text-body-sm font-semibold transition-colors ${tab === t.value ? "text-foreground" : "text-muted-foreground"}`}
           >
             <Icon icon={t.icon} size={16} className={tab === t.value ? "text-primary" : ""} />
-            {t.label}
+            {tr(t.label)}
             {tab === t.value && <motion.span layoutId="statement-tab" className="absolute inset-x-5 -bottom-px h-0.5 rounded-full bg-primary" />}
           </button>
         ))}

@@ -18,11 +18,19 @@ export const API = {
   /** Send only the keys being changed; unknown keys are rejected. */
   patchPreferences: (body: T.TraderPreferences) => api<{ ok: true }>("/trader/preferences", { method: "PATCH", body }),
   calculator: (amount: string, range: string) => api<T.Calculator>(`/trader/calculator${qs({ amount, range })}`),
+  /** Checks a notification link's start param after sign-in; the param goes URL-encoded, initData is never touched. */
+  notificationContext: (startParam: string) => api<T.NotificationContext>(`/notifications/context${qs({ startParam })}`),
 
-  /** Latest 30 settled profits and confirmed withdrawals of all users, newest first. */
-  communityFeed: () => api<T.CommunityFeed>("/community/feed"),
-  /** Confirmed withdrawals only (net delivered), so they aren't crowded out of the mixed feed. */
-  communityWithdrawals: () => api<T.CommunityFeed>("/community/withdrawals"),
+  /** One real tap on a "fund XENO" call to action; a retry sends the same eventId. Nothing personal goes in the body. */
+  analyticsEvent: (body: { eventId: string; event: "fund_xeno_clicked" }) => api<{ accepted: true }>("/analytics/events", { method: "POST", body }),
+
+  /**
+   * Verified community activity, newest first: settled profits, credited deposits, approved reviews and withdrawals (confirmed
+   * or processing). `type` asks for one kind only (none: the mixed feed). `cursor` is the nextCursor of a page read with the
+   * same type, passed back as is; polling reads the first page again. limit 1–50.
+   */
+  communityFeed: (p: { type?: T.FeedType; cursor?: string; limit?: number; signal?: AbortSignal } = {}) =>
+    api<T.CommunityFeed>(`/community/feed${qs({ type: p.type, limit: p.limit ?? 30, cursor: p.cursor })}`, { signal: p.signal }),
   leaderboard: (range: T.LeaderboardRange) => api<T.Leaderboard>(`/community/leaderboard${qs({ range })}`),
 
   depositCurrencies: () =>
@@ -51,9 +59,22 @@ export const API = {
 
   statement: (range: T.Range, instanceId?: string) => api<T.Statement>(`/statements${qs({ range, instanceId })}`),
   activity: (p: { page: number; range?: T.Range; instanceId?: string }) =>
-    api<T.PageResult<T.ActivityJournal>>(`/activity${qs({ page: p.page, limit: 20, range: p.range, instanceId: p.instanceId })}`),
+    api<T.ActivityPage>(`/activity${qs({ page: p.page, limit: 20, range: p.range, instanceId: p.instanceId })}`),
   referrals: () => api<T.Referrals>("/referrals"),
-  recentReferrals: (limit = 15) => api<T.ReferredUser[]>(`/referrals/recent${qs({ limit })}`),
+  /** Every invited friend, newest first; limit 1–100. */
+  referralUsers: (page: number, limit = 20) => api<T.PageResult<T.ReferralUser>>(`/referrals/users${qs({ page, limit })}`),
+  /** Booked commissions and rewards, newest first. No range: totals are lifetime. */
+  referralEarnings: (page: number, type: T.ReferralEarningType = "all", limit = 20) =>
+    api<T.PageResult<T.ReferralEarning>>(`/referrals/earnings${qs({ page, limit, type })}`),
+  platformPolicy: () => api<T.PlatformPolicy>("/platform/policy"),
+
+  /** When to invite feedback (also in GET /trader engagement.feedbackCta). */
+  feedbackEligibility: () => api<T.FeedbackEligibility>("/feedback/eligibility"),
+  /** One key per submission, kept for retries of the same body, so a double tap or a timeout never makes two. */
+  submitFeedback: (body: { rating: number; text: string; publicationConsent: boolean }, key: string) =>
+    api<T.FeedbackItem>("/feedback", { method: "POST", body, key }),
+  /** The user's own reviews, 20 a page, newest first. */
+  myFeedback: (cursor?: string) => api<T.FeedbackPage>(`/feedback/mine${qs({ cursor })}`),
 
   withdrawalPolicy: () => api<T.WithdrawalPolicy>("/withdrawals/policy"),
   withdrawals: (page = 1, limit = 20) => api<T.Withdrawal[]>(`/withdrawals${qs({ page, limit })}`),

@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
@@ -62,7 +63,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
-  cancelLabel = "Cancel",
+  cancelLabel = t("Cancel"),
   busy,
   onConfirm,
 }: {

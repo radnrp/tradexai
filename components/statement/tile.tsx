@@ -17,9 +17,9 @@ export function Tile({ icon, tint, label, hint, children }: { icon: IconSvg; tin
       <span className={`grid size-9 place-items-center rounded-full ${TINT[tint]}`}>
         <Icon icon={icon} size={18} />
       </span>
-      <div className="mt-3 truncate text-label text-muted-foreground">{label}</div>
+      <div className="mt-3 truncate text-label text-muted-foreground rtl:whitespace-normal">{label}</div>
       <div className="mt-0.5 truncate text-body font-semibold tabular-nums">{children}</div>
-      {hint && <div className="mt-0.5 truncate text-caption text-muted-foreground">{hint}</div>}
+      {hint && <div className="mt-0.5 truncate text-caption text-muted-foreground rtl:whitespace-normal">{hint}</div>}
     </div>
   );
 }

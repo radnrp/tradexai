@@ -5,8 +5,9 @@ import { motion, useReducedMotion } from "motion/react";
 import { ArrowDown02Icon, PlayCircleIcon } from "@hugeicons/core-free-icons";
 import xeno from "@/assets/agents/XENO_robot_icon.svg";
 import type { Trader } from "@/lib/api/types";
-import { fmt, sign } from "@/lib/money";
-import { useOpenDeposit } from "@/components/deposit/deposit-sheet";
+import { fmt } from "@/lib/money";
+import { t as tr } from "@/lib/i18n";
+import { useFundXeno } from "@/components/deposit/deposit-sheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Icon } from "@/components/ui/icon";
@@ -15,7 +16,8 @@ const KEY = "txai.welcomed.";
 
 /**
  * Shown once per user on a new account. "Trading started" only when the server reports the agent active with entries
- * allowed; otherwise it says what's actually happening (getting ready, or a deposit is needed).
+ * allowed and a trial that isn't still waiting for its first entry; otherwise it says what's actually happening (the trial is
+ * ready, getting ready, or a deposit is needed). The trial reads as free trades, never as money received.
  */
 export function WelcomeDialog({ t, userId, onTutorial }: { t: Trader; userId: string; onTutorial: () => void }) {
   const tutorialDone = t.onboarding.steps.find((s) => s.key === "tutorial_watched")?.complete ?? true;
@@ -28,11 +30,12 @@ export function WelcomeDialog({ t, userId, onTutorial }: { t: Trader; userId: st
     }
   });
   const reduce = useReducedMotion();
-  const openDeposit = useOpenDeposit();
+  const fundXeno = useFundXeno();
 
   const started = t.status === "active" && !t.pauseReason && t.engine.entriesEnabled && t.migrationState === "ready";
   const needsDeposit = t.pauseReason === "minimum_capital";
-  const trial = sign(t.trialPrincipalRemaining) > 0 ? fmt(t.trialPrincipalRemaining, 0) : null;
+  // the Trial is a number of entries, not a time span
+  const trialTrades = t.trial && (t.trial.status === "ready" || t.trial.status === "active") ? t.trial.limit : null;
 
   const close = () => {
     setOpen(false);
@@ -61,13 +64,15 @@ export function WelcomeDialog({ t, userId, onTutorial }: { t: Trader; userId: st
           </motion.span>
         </div>
 
-        <DialogTitle className="text-h1">{started ? "Trading started" : needsDeposit ? "Your agent is ready" : "Your agent is getting ready"}</DialogTitle>
+        <DialogTitle className="text-h1">{started ? tr(t.trial?.status === "ready" ? "Your XENO trial is ready" : "Trading started") : tr(needsDeposit ? "Your agent is ready" : "Your agent is getting ready")}</DialogTitle>
         <DialogDescription>
           {started
-            ? `Your agent is live${trial ? ` with a ${trial} USDT Trial fund` : ""}. It trades around the clock; every deposit adds to the same account.`
+            ? trialTrades
+              ? tr("Your free trial includes up to {n} trades, no deposit needed. XENO trades with a Trial grant, which isn't your money and can't be withdrawn.", { n: trialTrades })
+              : tr("Your agent is live. It trades around the clock; every deposit adds to the same account.")
             : needsDeposit
-              ? `Deposit at least ${fmt(t.minimumCapital, 0)} USDT and it starts trading by itself.`
-              : "It starts on its own in a moment. Nothing to set up."}
+              ? tr("Deposit at least {n} USDT and it starts trading by itself.", { n: fmt(t.minimumCapital, 0) })
+              : tr("It starts on its own in a moment. Nothing to set up.")}
         </DialogDescription>
 
         <div className="mt-1 flex w-full flex-col gap-2">
@@ -78,14 +83,14 @@ export function WelcomeDialog({ t, userId, onTutorial }: { t: Trader; userId: st
               icon={<Icon icon={ArrowDown02Icon} size={18} />}
               onClick={() => {
                 close();
-                openDeposit();
+                fundXeno();
               }}
             >
-              Deposit
+              {tr("Deposit")}
             </Button>
           ) : (
             <Button size="lg" block onClick={close}>
-              See my agent
+              {tr("See my agent")}
             </Button>
           )}
           <Button
@@ -98,10 +103,10 @@ export function WelcomeDialog({ t, userId, onTutorial }: { t: Trader; userId: st
               onTutorial();
             }}
           >
-            How it works
+            {tr("How it works")}
           </Button>
         </div>
-        <p className="text-caption text-muted-foreground">Results aren&apos;t guaranteed. You can lose money.</p>
+        <p className="text-caption text-muted-foreground">{tr("Results aren't guaranteed. You can lose money.")}</p>
       </DialogContent>
     </Dialog>
   );

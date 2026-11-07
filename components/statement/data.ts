@@ -29,8 +29,13 @@ export function useClosedTrades(range: Range, agent?: string) {
   return { q, trades, total: q.data?.pages[0]?.total ?? 0, loadingMore: !!hasNextPage && pages < AUTO_PAGES };
 }
 
-/** Net result per day: the server's daily rows when it sends them, otherwise summed from trades. */
-export function dailyNet(daily: Statement["daily"], trades: Position[]): { day: string; net: string }[] {
+export type DayNet = { day: string; net: string };
+
+/**
+ * Personal net result per closing day: the server's daily rows when it sends them,
+ * otherwise summed from trades. Never mix it with dailyFinancial, which counts a cover on the day it settled.
+ */
+export function dailyNet(daily: Statement["daily"], trades: Position[]): DayNet[] {
   const m = new Map<string, string>();
   for (const row of daily as Row[]) {
     const d = pick<string>(row, ["date", "day", "bucket"]);

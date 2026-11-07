@@ -6,10 +6,13 @@ import { API } from "@/lib/api/client";
 import type { Range } from "@/lib/api/types";
 import { qk, useStatement } from "@/lib/queries";
 import { haptic } from "@/lib/telegram";
+import { t } from "@/lib/i18n";
+import { tx } from "@/lib/i18n/rich";
+import { PnlAmount } from "@/components/trading/pnl";
 import { PositionCard } from "@/components/trading/position-card";
 import { Segmented } from "@/components/ui/controls";
 import { Icon } from "@/components/ui/icon";
-import { Amount, EmptyState, ErrorState, ListSkeleton } from "@/components/ui/primitives";
+import { EmptyState, ErrorState, ListSkeleton } from "@/components/ui/primitives";
 
 const PER_PAGE = 5;
 type Kind = "open" | "closed";
@@ -53,15 +56,18 @@ export function Trades({ range, agent, showAgent = !agent }: { range: Range; age
         value={kind}
         onChange={setKind}
         options={[
-          { value: "open", label: <Count icon={Activity01Icon} label="Open" n={open.data?.total} live /> },
-          { value: "closed", label: <Count icon={CheckmarkCircle02Icon} label="Closed" n={closed.data?.total} /> },
+          { value: "open", label: <Count icon={Activity01Icon} label={t("Open")} n={open.data?.total} live /> },
+          { value: "closed", label: <Count icon={CheckmarkCircle02Icon} label={t("Closed")} n={closed.data?.total} /> },
         ]}
       />
 
+      {/* personal, like the cards below */}
       {st.data && total > 0 && (
-        <div className="flex items-center justify-between rounded-md bg-surface px-3.5 py-2.5 text-body-sm">
-          <span className="text-muted-foreground">{kind === "open" ? "Open result now" : "Closed result"}</span>
-          <Amount value={kind === "open" ? st.data.unrealizedNetEstimate : st.data.realized.realized_net} signed colored unit="USDT" className="font-semibold" />
+        <div className="rounded-md bg-surface px-3.5 py-2.5 text-body-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">{t(kind === "open" ? "Open result now" : "Closed result")}</span>
+            <PnlAmount value={kind === "open" ? st.data.unrealizedNetEstimate : st.data.realized.realized_net} unit="USDT" className="font-semibold" />
+          </div>
         </div>
       )}
 
@@ -72,7 +78,7 @@ export function Trades({ range, agent, showAgent = !agent }: { range: Range; age
       ) : !q.data.items.length ? (
         <EmptyState
           icon={<Icon icon={kind === "open" ? Activity01Icon : Calendar03Icon} size={28} />}
-          title={kind === "open" ? "No open trades" : "No closed trades"}
+          title={t(kind === "open" ? "No open trades" : "No closed trades")}
         />
       ) : (
         <div className={`flex flex-col gap-2 transition-opacity ${q.isPlaceholderData ? "opacity-60" : ""}`}>
@@ -100,15 +106,15 @@ function Count({ icon, label, n, live }: { icon: Parameters<typeof Icon>[0]["ico
 function Pager({ page, pages, busy, onGo }: { page: number; pages: number; busy: boolean; onGo: (n: number) => void }) {
   const btn = "hit-area grid size-10 place-items-center rounded-full bg-surface-raised text-foreground transition-opacity disabled:opacity-30";
   return (
-    <nav aria-label="Pages" className="mt-1 flex items-center justify-between gap-3">
-      <button type="button" aria-label="Previous page" className={btn} disabled={busy || page <= 1} onClick={() => onGo(page - 1)}>
-        <Icon icon={ArrowLeft01Icon} size={18} />
+    <nav aria-label={t("Pages")} className="mt-1 flex items-center justify-between gap-3">
+      <button type="button" aria-label={t("Previous page")} className={btn} disabled={busy || page <= 1} onClick={() => onGo(page - 1)}>
+        <Icon icon={ArrowLeft01Icon} size={18} className="rtl:-scale-x-100" />
       </button>
       <span className="text-label text-muted-foreground tabular-nums" aria-live="polite">
-        Page <span className="font-semibold text-foreground">{page}</span> of {pages}
+        {tx("Page {page} of {pages}", { page: <span className="font-semibold text-foreground">{page}</span>, pages })}
       </span>
-      <button type="button" aria-label="Next page" className={btn} disabled={busy || page >= pages} onClick={() => onGo(page + 1)}>
-        <Icon icon={ArrowRight01Icon} size={18} />
+      <button type="button" aria-label={t("Next page")} className={btn} disabled={busy || page >= pages} onClick={() => onGo(page + 1)}>
+        <Icon icon={ArrowRight01Icon} size={18} className="rtl:-scale-x-100" />
       </button>
     </nav>
   );

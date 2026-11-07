@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils";
 // shadcn/ui Drawer (vaul), bottom-only, restyled with the design.md tokens.
 
 function Drawer(props: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  return <DrawerPrimitive.Root data-slot="drawer" {...props} />;
+  // repositionInputs pins an inline px height while the keyboard is up and doesn't always undo it, leaving a
+  // stubby sheet once the keyboard closes (e.g. after the withdraw code); the webview handles the keyboard itself.
+  return <DrawerPrimitive.Root data-slot="drawer" repositionInputs={false} {...props} />;
 }
 
 function DrawerOverlay({ className, ...props }: React.ComponentProps<typeof DrawerPrimitive.Overlay>) {

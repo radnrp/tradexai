@@ -1,6 +1,7 @@
 // Session + transport: Telegram initData login, single-flight refresh, one retry on 401.
+import { campaignCode, isUuid4, quietly, uuid4 } from "@/lib/analytics";
 import { API_BASE } from "@/lib/env";
-import { tg, waitForTelegram } from "@/lib/telegram";
+import { tg, type TgWebApp, waitForTelegram } from "@/lib/telegram";
 import type { Session, User } from "./types";
 
 export class ApiError extends Error {
@@ -30,7 +31,8 @@ function serverMessage(d: unknown): string | null {
   return typeof m === "string" && m ? m : null;
 }
 
-type Opts = { method?: "GET" | "POST" | "PATCH"; body?: unknown; key?: string };
+/** `signal`: React Query's, so a screen that's left (a tab switched away from) stops waiting for its answer. */
+type Opts = { method?: "GET" | "POST" | "PATCH"; body?: unknown; key?: string; signal?: AbortSignal };
 
 async function send(path: string, o: Opts, token: string | null): Promise<Response> {
   const headers: Record<string, string> = {};
@@ -43,8 +45,11 @@ async function send(path: string, o: Opts, token: string | null): Promise<Respon
       headers,
       body: o.body === undefined ? undefined : JSON.stringify(o.body),
       cache: "no-store",
+      signal: o.signal,
     });
-  } catch {
+  } catch (e) {
+    // a cancelled request isn't a connection problem
+    if (o.signal?.aborted) throw e;
     throw new ApiError(0, null);
   }
 }
@@ -113,11 +118,43 @@ function refresh(): Promise<boolean> {
   return refreshing;
 }
 
+// One anonymous visit per real app open (POST /analytics/visits), so a campaign link's opens can be counted before sign-in.
+// The id survives a reload of the same open (same auth_date and start param) and every retry, so the server counts it once.
+const VISIT = "txai.visit";
+/** The open is sent first so the login can claim it, but sign-in never waits on it longer than this. */
+const VISIT_WAIT_MS = 1_500;
+let visit: { id: string; sent: Promise<boolean> } | null = null;
+
+function openVisit(app: TgWebApp) {
+  if (visit) return visit;
+  const start = app.initDataUnsafe.start_param;
+  const key = `${app.initDataUnsafe.auth_date ?? ""}:${start ?? ""}`;
+  let id: string | null = null;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(VISIT) ?? "null") as { key?: unknown; id?: unknown } | null;
+    if (saved?.key === key && isUuid4(saved.id)) id = saved.id;
+  } catch {}
+  id ??= uuid4();
+  try {
+    sessionStorage.setItem(VISIT, JSON.stringify({ key, id }));
+  } catch {}
+  // public and anonymous: no token, and only the visit id and campaign code (undefined drops out of the JSON)
+  const body = { visitId: id, campaignCode: campaignCode(start) };
+  const sent = quietly(async () => parse(await send("/analytics/visits", { method: "POST", body }, null)), {
+    tries: 3,
+    delayMs: 1_000,
+    retryable: (e) => e instanceof ApiError && e.uncertain,
+  });
+  visit = { id, sent };
+  return visit;
+}
+
 async function doBoot(): Promise<User> {
   const app = await waitForTelegram();
   const initData = app?.initData;
   if (!app || !initData) throw new NotInTelegramError();
   uid = String(app.initDataUnsafe.user?.id ?? "");
+  const v = openVisit(app);
 
   let saved: { uid?: string; rt?: string } | null = null;
   try {
@@ -128,7 +165,9 @@ async function doBoot(): Promise<User> {
     if (await refresh()) return api<User>("/auth/me");
   }
 
-  const s = await parse<Session>(await send("/auth/telegram", { method: "POST", body: { initData } }, null));
+  await Promise.race([v.sent, new Promise((r) => setTimeout(r, VISIT_WAIT_MS))]);
+  // the server ties the visit to this account only if the signed start param agrees with it
+  const s = await parse<Session>(await send("/auth/telegram", { method: "POST", body: { initData, visitId: v.id } }, null));
   store(s);
   return s.user;
 }

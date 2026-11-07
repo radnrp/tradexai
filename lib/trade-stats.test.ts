@@ -16,6 +16,15 @@ const t = (net: string, i: number, symbol = "BTCUSDT", agent = "Evo"): Position 
     closed_at: new Date(Date.UTC(2026, 0, i, 2)).toISOString(),
   }) as Position;
 
+test("trade stats use the actual result: a loss the Trial grant covered is still a loss", () => {
+  const covered = { ...t("0.00000000", 2), account_net_pnl: "-2.00000000", trial_loss_covered: "2.00000000" } as Position;
+  const s = tradeStats([t("4", 1), covered]);
+  assert.deepEqual([s.wins, s.losses, s.even], [1, 1, 0]);
+  assert.equal(s.avgLoss, "2.00000000");
+  assert.equal(s.worst, covered);
+  assert.equal(s.net, "2.00000000");
+});
+
 test("trade stats: totals, averages, streaks, buckets", () => {
   const s = tradeStats([t("4", 1), t("2", 2), t("-3", 3, "ETHUSDT"), t("0", 4), t("6", 5, "ETHUSDT", "Lumo")]);
   assert.equal(s.count, 5);

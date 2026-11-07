@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { CandlestickSeries, ColorType, createChart, createSeriesMarkers, type SeriesMarker, type UTCTimestamp } from "lightweight-charts";
 import { API } from "@/lib/api/client";
 import type { Position } from "@/lib/api/types";
-import { fmtAgo } from "@/lib/format";
+import { fmtAgo, fmtChartTime } from "@/lib/format";
+import { getLang, t as tr } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/primitives";
 
 /** Closed 1-minute candles with this agent's entries/exits marked. Display-only Number conversion. */
@@ -21,6 +22,7 @@ export function CandleChart({ symbol, positions }: { symbol: string; positions: 
       grid: { vertLines: { visible: false }, horzLines: { color: "rgba(255,255,255,0.05)" } },
       rightPriceScale: { borderVisible: false },
       timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
+      ...(getLang() === "fa" ? { localization: { locale: "fa-IR", timeFormatter: (time: unknown) => fmtChartTime(time as number) } } : {}),
       crosshair: { horzLine: { labelBackgroundColor: "#24282a" }, vertLine: { labelBackgroundColor: "#24282a" } },
     });
     const series = chart.addSeries(CandlestickSeries, {
@@ -38,9 +40,9 @@ export function CandleChart({ symbol, positions }: { symbol: string; positions: 
       const t = new Date(p.opened_at).getTime();
       const short = p.side === "short";
       if (t >= first)
-        markers.push({ time: Math.floor(t / 60000) * 60 as UTCTimestamp, position: short ? "aboveBar" : "belowBar", color: "#f6f7f7", shape: short ? "arrowDown" : "arrowUp", text: short ? "Short" : "Long" });
+        markers.push({ time: Math.floor(t / 60000) * 60 as UTCTimestamp, position: short ? "aboveBar" : "belowBar", color: "#f6f7f7", shape: short ? "arrowDown" : "arrowUp", text: tr(short ? "Short" : "Long") });
       if (p.closed_at && new Date(p.closed_at).getTime() >= first)
-        markers.push({ time: Math.floor(new Date(p.closed_at).getTime() / 60000) * 60 as UTCTimestamp, position: short ? "belowBar" : "aboveBar", color: "#ffb648", shape: short ? "arrowUp" : "arrowDown", text: "Exit" });
+        markers.push({ time: Math.floor(new Date(p.closed_at).getTime() / 60000) * 60 as UTCTimestamp, position: short ? "belowBar" : "aboveBar", color: "#ffb648", shape: short ? "arrowUp" : "arrowDown", text: tr("Exit") });
     }
     createSeriesMarkers(series, markers.sort((a, b) => a.time - b.time));
     chart.timeScale().fitContent();
@@ -48,16 +50,16 @@ export function CandleChart({ symbol, positions }: { symbol: string; positions: 
   }, [q.data, positions]);
 
   if (q.isPending) return <Skeleton className="h-56" />;
-  if (q.isError || !q.data.length) return <div className="grid h-40 place-items-center px-6 text-center text-body-sm text-muted-foreground">Chart unavailable. Retrying…</div>;
+  if (q.isError || !q.data.length) return <div className="grid h-40 place-items-center px-6 text-center text-body-sm text-muted-foreground">{tr("Chart unavailable. Retrying…")}</div>;
   const last = q.data[q.data.length - 1];
   // the API only returns ~200 recent 1m candles, so an older trade has nothing to mark
   const outOfRange = positions.length > 0 && positions.every((p) => new Date(p.closed_at ?? p.opened_at).getTime() < q.data[0].time);
   return (
     <div>
-      <div ref={el} className="h-56 w-full" role="img" aria-label={`${symbol} one-minute candles`} />
+      <div ref={el} dir="ltr" className="h-56 w-full" role="img" aria-label={tr("{symbol} one-minute candles", { symbol })} />
       <p className="mt-1 flex justify-between gap-2 text-caption text-muted-foreground">
-        <span>{outOfRange ? "Trade is outside the chart range." : "1m candles"}</span>
-        <span className="shrink-0">Last candle {fmtAgo(last.closeTime)}</span>
+        <span>{outOfRange ? tr("Trade is outside the chart range.") : tr("1m candles")}</span>
+        <span className="shrink-0">{tr("Last candle {ago}", { ago: fmtAgo(last.closeTime) })}</span>
       </p>
     </div>
   );

@@ -2,6 +2,7 @@
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "./drawer";
 import { Icon } from "./icon";
+import { t } from "@/lib/i18n";
 
 /** Bottom sheet (L2): drag down, tap outside or Esc to close. Built on the shadcn Drawer. */
 export function Sheet({
@@ -35,7 +36,7 @@ export function Sheet({
             <DrawerTitle className="truncate">{title}</DrawerTitle>
             {subtitle && <p className="truncate text-label font-normal text-muted-foreground">{subtitle}</p>}
           </div>
-          <DrawerClose aria-label="Close" className="hit-area grid size-9 shrink-0 place-items-center rounded-full bg-surface-raised text-muted-foreground">
+          <DrawerClose aria-label={t("Close")} className="hit-area grid size-9 shrink-0 place-items-center rounded-full bg-surface-raised text-muted-foreground">
             <Icon icon={Cancel01Icon} size={18} />
           </DrawerClose>
         </div>

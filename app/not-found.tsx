@@ -1,5 +1,6 @@
 "use client";
 import { Search01Icon } from "@hugeicons/core-free-icons";
+import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { EmptyState, FlowHeader, Page } from "@/components/ui/primitives";
@@ -8,15 +9,15 @@ import { EmptyState, FlowHeader, Page } from "@/components/ui/primitives";
 export default function NotFound() {
   return (
     <Page nav={false}>
-      <FlowHeader title="Not found" />
+      <FlowHeader title={t("Not found")} />
       <div className="mt-6">
         <EmptyState
           icon={<Icon icon={Search01Icon} size={28} />}
-          title="This page doesn't exist"
-          body="The link may be broken or outdated."
+          title={t("This page doesn't exist")}
+          body={t("The link may be broken or outdated.")}
           action={
             <Button as="a" href="/">
-              Back to home
+              {t("Back to home")}
             </Button>
           }
         />

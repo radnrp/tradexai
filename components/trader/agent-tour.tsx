@@ -15,8 +15,9 @@ import {
   Target02Icon,
   Wallet01Icon,
 } from "@hugeicons/core-free-icons";
-import { pct, readPolicy } from "@/lib/agent-info";
+import { feeExempt, feeText, readPolicy } from "@/lib/agent-info";
 import { API } from "@/lib/api/client";
+import { dirSign, t as tr } from "@/lib/i18n";
 import type { Trader } from "@/lib/api/types";
 import { fmt } from "@/lib/money";
 import { qk } from "@/lib/queries";
@@ -27,51 +28,52 @@ import { Sheet } from "@/components/ui/sheet";
 
 type IconSvg = Parameters<typeof Icon>[0]["icon"];
 type Slide = { icon: IconSvg; color: string; title: string; body: string; points: { icon: IconSvg; text: string }[] };
-type Facts = Pick<Trader, "tradePolicy" | "quota" | "feeBpsPerSide" | "minimumCapital">;
+type Facts = Pick<Trader, "tradePolicy" | "quota" | "feeBpsPerSide" | "feeBasis" | "feePolicy" | "minimumCapital" | "trial" | "trialProfitProtection">;
 
 // each slide has its own color so the steps feel distinct; numbers come from GET /trader so the guide can't drift from the rules
 function slides(t: Facts): Slide[] {
   const p = readPolicy(t.tradePolicy);
-  const lev = p.leverage != null ? `${p.leverage}×` : p.maxLeverage != null ? `up to ${p.maxLeverage}×` : "auto";
+  const lev = p.leverage != null ? `${p.leverage}×` : p.maxLeverage != null ? tr("up to {n}×", { n: p.maxLeverage }) : tr("auto");
+  const profit = t.trialProfitProtection;
   return [
     {
       icon: Robot01Icon,
       color: "var(--color-primary)",
-      title: "Meet your agent",
-      body: "It trades crypto for you, long or short, 24/7.",
+      title: tr("Meet your agent"),
+      body: tr("It trades crypto for you, long or short, 24/7."),
       points: [
-        { icon: Clock01Icon, text: "Always on. Nothing to start or stop" },
-        { icon: ChartLineData02Icon, text: `Top ${p.universe} coins, leverage ${lev}` },
+        { icon: Clock01Icon, text: tr("Always on. Nothing to start or stop") },
+        { icon: ChartLineData02Icon, text: tr("Top {n} coins, leverage {lev}", { n: p.universe, lev }) },
       ],
     },
     {
       icon: Wallet01Icon,
       color: "var(--color-info)",
-      title: "One account",
-      body: "Every deposit goes to the same account.",
+      title: tr("One account"),
+      body: tr("Every deposit goes to the same account."),
       points: [
-        { icon: GiftIcon, text: "Trial fund trades too, but can't be withdrawn" },
-        { icon: Coins01Icon, text: "Settled profit can be withdrawn" },
+        { icon: GiftIcon, text: t.trial ? tr("Your first {n} trades are a free trial. It's not money you can withdraw", { n: t.trial.limit }) : tr("The Trial grant trades too, but can't be withdrawn") },
+        { icon: Coins01Icon, text: profit?.enabled && !profit.fundingConditionMet ? tr("Trial profit can be withdrawn once your deposits reach {n} USDT", { n: fmt(profit.minimumDeposit, 0) }) : tr("Settled profit can be withdrawn") },
       ],
     },
     {
       icon: Target02Icon,
       color: "var(--color-warning)",
-      title: "Every trade has an exit",
-      body: "Take profit or stop loss. No time limit.",
+      title: tr("Every trade has an exit"),
+      body: tr("Take profit or stop loss. No time limit."),
       points: [
-        { icon: Layers01Icon, text: `Up to ${t.quota.hourlyEntryLimit} new trades an hour, ${t.quota.maxOpenPositions} open at once` },
-        { icon: PieChartIcon, text: `Fee ${pct(t.feeBpsPerSide)} of the trade's margin, each side` },
+        { icon: Layers01Icon, text: tr("Up to {h} new trades an hour, {o} open at once", { h: t.quota.hourlyEntryLimit, o: t.quota.maxOpenPositions }) },
+        { icon: PieChartIcon, text: feeExempt(t) ? tr("No fee on Trial trades; funding still applies") : tr("Fee {fee}", { fee: feeText(t) }) },
       ],
     },
     {
       icon: Alert02Icon,
       color: "var(--color-destructive)",
-      title: "Know the risk",
-      body: "Results aren't guaranteed. You can lose money.",
+      title: tr("Know the risk"),
+      body: tr("Results aren't guaranteed. You can lose money."),
       points: [
-        { icon: Wallet01Icon, text: `Below ${fmt(t.minimumCapital, 0)} USDT, new trades pause` },
-        { icon: Alert02Icon, text: "Only risk what you can afford" },
+        { icon: Wallet01Icon, text: tr("Below {n} USDT, new trades pause", { n: fmt(t.minimumCapital, 0) }) },
+        { icon: Alert02Icon, text: tr("Only risk what you can afford") },
       ],
     },
   ];
@@ -108,17 +110,17 @@ export function AgentTour({ open, t, onClose }: { open: boolean; t: Facts; onClo
     <Sheet
       open={open}
       onClose={close}
-      title="How your agent works"
-      subtitle={`${i + 1} of ${SLIDES.length}`}
+      title={tr("How your agent works")}
+      subtitle={tr("{i} of {n}", { i: i + 1, n: SLIDES.length })}
       footer={
         <div className="flex items-center gap-2">
           {i > 0 && (
-            <IconButton label="Back" onClick={() => go(i - 1)}>
-              <Icon icon={ArrowLeft01Icon} />
+            <IconButton label={tr("Back")} onClick={() => go(i - 1)}>
+              <Icon icon={ArrowLeft01Icon} className="rtl:-scale-x-100" />
             </IconButton>
           )}
           <Button size="lg" className="flex-1" onClick={() => (last ? finish() : go(i + 1))}>
-            {last ? "Got it" : "Next"}
+            {last ? tr("Got it") : tr("Next")}
           </Button>
         </div>
       }
@@ -130,9 +132,9 @@ export function AgentTour({ open, t, onClose }: { open: boolean; t: Facts; onClo
             key={i}
             custom={dir}
             variants={{
-              enter: (d: number) => ({ x: d * 60, opacity: 0 }),
+              enter: (d: number) => ({ x: d * 60 * dirSign(), opacity: 0 }),
               center: { x: 0, opacity: 1 },
-              exit: (d: number) => ({ x: d * -60, opacity: 0 }),
+              exit: (d: number) => ({ x: d * -60 * dirSign(), opacity: 0 }),
             }}
             initial="enter"
             animate="center"
@@ -142,8 +144,9 @@ export function AgentTour({ open, t, onClose }: { open: boolean; t: Facts; onClo
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.25}
             onDragEnd={(_, info) => {
-              if (info.offset.x < -50) go(i + 1);
-              else if (info.offset.x > 50) go(i - 1);
+              const x = info.offset.x * dirSign();
+              if (x < -50) go(i + 1);
+              else if (x > 50) go(i - 1);
             }}
             className="absolute inset-0 flex flex-col items-center text-center"
           >
@@ -173,7 +176,7 @@ export function AgentTour({ open, t, onClose }: { open: boolean; t: Facts; onClo
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.12 + k * 0.08, duration: 0.22 }}
-                  className="flex items-center gap-3 rounded-md bg-surface-raised px-3.5 py-2.5 text-left text-body-sm"
+                  className="flex items-center gap-3 rounded-md bg-surface-raised px-3.5 py-2.5 text-start text-body-sm"
                 >
                   <Icon icon={p.icon} size={18} style={{ color: s.color }} className="shrink-0" />
                   {p.text}
@@ -184,13 +187,13 @@ export function AgentTour({ open, t, onClose }: { open: boolean; t: Facts; onClo
         </AnimatePresence>
       </div>
 
-      <div className="mt-2 flex justify-center gap-1.5" role="tablist" aria-label="Tour steps">
+      <div className="mt-2 flex justify-center gap-1.5" role="tablist" aria-label={tr("Tour steps")}>
         {SLIDES.map((sl, k) => (
           <button
             key={sl.title}
             role="tab"
             aria-selected={k === i}
-            aria-label={`Step ${k + 1}`}
+            aria-label={tr("Step {n}", { n: k + 1 })}
             onClick={() => go(k)}
             className="hit-area h-1.5 rounded-full transition-all duration-200"
             style={{ width: k === i ? 20 : 6, background: k === i ? s.color : "var(--color-subtle)" }}

@@ -13,13 +13,15 @@ import { describeError, WITHDRAWAL_FINAL, withdrawalStatus } from "@/lib/labels"
 import { fmt, trimZeros } from "@/lib/money";
 import { pollUntil, useInvalidateLedger } from "@/lib/queries";
 import { haptic, openExternal } from "@/lib/telegram";
+import { otpInput } from "@/lib/digits";
+import { t as tr, type Key } from "@/lib/i18n";
 import { TONE } from "@/components/money/flow-ui";
 import { Button } from "@/components/ui/button";
 import { useCountdown } from "@/components/ui/controls";
 import { Icon } from "@/components/ui/icon";
 import { ErrorState, Notice, Pill, Row, Skeleton } from "@/components/ui/primitives";
 
-const STAGES = ["Code", "Approved", "Sent", "Arrived"];
+const STAGES: Key[] = ["Code", "Approved", "Sent", "Arrived"];
 const stageOf = (s: string) => ({ awaiting_otp: 0, queued: 1, signed: 2, broadcast: 2, confirmed: 3 })[s] ?? 0;
 const ENDED = new Set(["expired", "cancelled", "failed"]);
 const usdt = (v: string | null | undefined) => `${trimZeros(fmt(v, 8))} USDT`;
@@ -38,7 +40,7 @@ export function WithdrawStatus({ id, onNew, onDone }: { id: string; onNew: () =>
 
   if (q.isPending)
     return (
-      <div className="flex flex-col gap-3" aria-busy aria-label="Loading withdrawal">
+      <div className="flex flex-col gap-3" aria-busy aria-label={tr("Loading withdrawal")}>
         <Skeleton className="h-16 rounded-lg" />
         <Skeleton className="h-48 rounded-lg" />
       </div>
@@ -57,12 +59,12 @@ function Sending({ w }: { w: Withdrawal }) {
         <Icon icon={ArrowUp02Icon} />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-label text-muted-foreground">You&apos;re sending</div>
-        <div className="text-body font-semibold tabular-nums">{usdt(w.net_amount)}</div>
+        <div className="text-label text-muted-foreground">{tr("You're sending")}</div>
+        <div className="text-body font-semibold tabular-nums"><bdi>{usdt(w.net_amount)}</bdi></div>
       </div>
-      <div className="min-w-0 text-right">
-        <div className="text-label text-muted-foreground">To</div>
-        <div className="font-mono text-label">{shortAddr(w.address, 4)}</div>
+      <div className="min-w-0 text-end">
+        <div className="text-label text-muted-foreground">{tr("To")}</div>
+        <div dir="ltr" className="font-mono text-label">{shortAddr(w.address, 4)}</div>
       </div>
     </div>
   );
@@ -93,12 +95,12 @@ function CodeStep({ w }: { w: Withdrawal }) {
       const res = await API.confirmOtp(w.id, code);
       haptic.success();
       qc.setQueryData(["withdrawal", w.id], res);
-      toast.success("Code accepted", { description: "Processing withdrawal." });
+      toast.success(tr("Code accepted"), { description: tr("Processing withdrawal.") });
     } catch (e) {
       haptic.error();
       setCode("");
       const d = describeError(e);
-      toast.error(e instanceof ApiError && e.status === 400 ? "That code didn't work" : d.title, { description: d.detail });
+      toast.error(e instanceof ApiError && e.status === 400 ? tr("That code didn't work") : d.title, { description: d.detail });
       input.current?.focus();
     } finally {
       setBusy(false);
@@ -115,7 +117,7 @@ function CodeStep({ w }: { w: Withdrawal }) {
       setNow(sentAt);
       setDeliveryFailed(res.deliveryStatus === "failed");
       if (res.deliveryStatus === "failed") haptic.warn();
-      else toast.success("New code sent", { description: "Previous code is invalid." });
+      else toast.success(tr("New code sent"), { description: tr("Previous code is invalid.") });
       qc.setQueryData(["withdrawal", w.id], res);
     } catch (e) {
       const d = describeError(e);
@@ -135,21 +137,21 @@ function CodeStep({ w }: { w: Withdrawal }) {
             <Icon icon={ShieldKeyIcon} size={16} />
           </span>
           <div>
-            <h3 className="text-body-sm font-semibold">Enter the bot code</h3>
-            <p className="text-caption text-muted-foreground">6-digit code from the bot</p>
+            <h3 className="text-body-sm font-semibold">{tr("Enter the bot code")}</h3>
+            <p className="text-caption text-muted-foreground">{tr("6-digit code from the bot")}</p>
           </div>
         </div>
 
         {deliveryFailed && (
           <div className="mt-3">
-            <Notice tone="warn" title="The bot couldn't send it">
-              Start the bot, then tap Resend.
+            <Notice tone="warn" title={tr("The bot couldn't send it")}>
+              {tr("Start the bot, then tap Resend.")}
             </Notice>
           </div>
         )}
 
-        <label className="relative mt-3 block" onClick={() => input.current?.focus()}>
-          <span className="sr-only">6-digit code</span>
+        <label dir="ltr" className="relative mt-3 block" onClick={() => input.current?.focus()}>
+          <span className="sr-only">{tr("6-digit code")}</span>
           <input
             ref={input}
             autoFocus
@@ -158,7 +160,7 @@ function CodeStep({ w }: { w: Withdrawal }) {
             autoComplete="one-time-code"
             maxLength={6}
             disabled={busy || expired}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onChange={(e) => setCode(otpInput(e.target.value))}
             className="absolute inset-0 opacity-0"
           />
           <div className="grid grid-cols-6 gap-2" aria-hidden>
@@ -167,7 +169,7 @@ function CodeStep({ w }: { w: Withdrawal }) {
                 key={i}
                 animate={{ scale: code.length === i ? 1.04 : 1 }}
                 transition={{ duration: 0.14 }}
-                className={`grid h-13 place-items-center rounded-md border bg-surface text-h1 tabular-nums transition-colors ${
+                className={`grid h-13 place-items-center rounded-md border bg-surface font-latin text-h1 tabular-nums transition-colors ${
                   code.length === i && !busy && !expired ? TONE.out.border : code[i] ? "border-foreground/20" : ""
                 }`}
               >
@@ -179,25 +181,25 @@ function CodeStep({ w }: { w: Withdrawal }) {
 
         <div className="mt-3 flex items-center justify-between text-label tabular-nums">
           <span className={expiry.left < 60 ? "text-warning" : "text-muted-foreground"}>
-            {w.otp_expires_at ? (expired ? "Expired, checking…" : `Expires in ${expiry.text}`) : ""}
+            {w.otp_expires_at ? (expired ? tr("Expired, checking…") : tr("Expires in {time}", { time: expiry.text })) : ""}
           </span>
           <button onClick={resend} disabled={cooldown > 0 || resending} className="hit-area font-semibold text-foreground disabled:text-muted-foreground">
-            {resending ? "Sending…" : cooldown > 0 ? `Resend in ${cooldown}s` : "Resend"}
+            {resending ? tr("Sending…") : cooldown > 0 ? tr("Resend in {s}s", { s: cooldown }) : tr("Resend")}
           </button>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
         <Button variant="outgoing" size="lg" block loading={busy} disabled={code.length !== 6 || expired} onClick={confirm}>
-          Confirm withdrawal
+          {tr("Confirm withdrawal")}
         </Button>
         {BOT_USERNAME && (
           <Button variant="ghost" block icon={<Icon icon={SentIcon} size={18} />} onClick={() => openExternal(`https://t.me/${BOT_USERNAME}`)}>
-            Open the bot
+            {tr("Open the bot")}
           </Button>
         )}
       </div>
-      <p className="text-center text-caption text-muted-foreground">5 wrong attempts cancel it</p>
+      <p className="text-center text-caption text-muted-foreground">{tr("5 wrong attempts cancel it")}</p>
     </div>
   );
 }
@@ -220,19 +222,19 @@ function Result({ w, onNew, onDone }: { w: Withdrawal; onNew: () => void; onDone
           >
             <Icon icon={CheckmarkCircle02Icon} size={40} />
           </motion.div>
-          <h3 className="mt-4 text-h1">Money sent</h3>
-          <div className="mt-1 text-display tabular-nums">{usdt(w.net_amount)}</div>
-          <p className="mt-1 text-body-sm text-muted-foreground">arrived in your wallet {fmtDateTime(w.confirmed_at)}</p>
+          <h3 className="mt-4 text-h1">{tr("Money sent")}</h3>
+          <div dir="ltr" className="mt-1 text-display tabular-nums">{usdt(w.net_amount)}</div>
+          <p className="mt-1 text-body-sm text-muted-foreground">{tr("arrived in your wallet {at}", { at: fmtDateTime(w.confirmed_at) })}</p>
         </div>
       ) : ended ? (
         <div className="flex flex-col items-center rounded-lg bg-surface-raised px-5 py-7 text-center">
           <span className="grid size-14 place-items-center rounded-full bg-destructive/12 text-destructive">
             <Icon icon={CancelCircleIcon} size={28} />
           </span>
-          <h3 className="mt-3 text-h2">Withdrawal {s.label.toLowerCase()}</h3>
+          <h3 className="mt-3 text-h2">{tr("Withdrawal {status}", { status: s.label.toLowerCase() })}</h3>
           {s.hint && <p className="mt-1 text-body-sm text-muted-foreground">{s.hint}</p>}
           <Button variant="outgoing" className="mt-5" onClick={onNew}>
-            Start a new withdrawal
+            {tr("Start a new withdrawal")}
           </Button>
         </div>
       ) : (
@@ -240,7 +242,7 @@ function Result({ w, onNew, onDone }: { w: Withdrawal; onNew: () => void; onDone
           <div className="flex items-center justify-between gap-3">
             <Pill tone={s.tone}>{s.label}</Pill>
           </div>
-          <ol className="grid grid-cols-4 gap-1.5" aria-label="Withdrawal progress">
+          <ol className="grid grid-cols-4 gap-1.5" aria-label={tr("Withdrawal progress")}>
             {STAGES.map((label, i) => (
               <li key={label}>
                 <div className="h-1 overflow-hidden rounded-full bg-surface-raised">
@@ -251,7 +253,7 @@ function Result({ w, onNew, onDone }: { w: Withdrawal; onNew: () => void; onDone
                     transition={{ duration: 0.4, ease: [0.2, 0, 0, 1] }}
                   />
                 </div>
-                <div className={`mt-1.5 text-caption ${i <= stage ? "text-foreground" : "text-muted-foreground"}`}>{label}</div>
+                <div className={`mt-1.5 text-caption ${i <= stage ? "text-foreground" : "text-muted-foreground"}`}>{tr(label)}</div>
               </li>
             ))}
           </ol>
@@ -268,29 +270,29 @@ function Result({ w, onNew, onDone }: { w: Withdrawal; onNew: () => void; onDone
       )}
 
       <div className="divide-y divide-border rounded-lg bg-surface-raised px-4">
-        <Row label="From balance">{usdt(w.amount)}</Row>
-        <Row label="Fee">{usdt(w.fee)}</Row>
-        <Row label="You receive" strong>
+        <Row label={tr("From balance")}>{usdt(w.amount)}</Row>
+        <Row label={tr("Fee")}>{usdt(w.fee)}</Row>
+        <Row label={tr("You receive")} strong>
           {usdt(w.net_amount)}
         </Row>
-        <Row label="Date">{fmtDateTime(w.created_at)}</Row>
+        <Row label={tr("Date")}>{fmtDateTime(w.created_at)}</Row>
       </div>
       <div className="rounded-lg bg-surface-raised p-3">
-        <div className="text-caption text-muted-foreground">To this wallet</div>
-        <div className="mt-1 break-all font-mono text-body-sm">{w.address}</div>
+        <div className="text-caption text-muted-foreground">{tr("To this wallet")}</div>
+        <div dir="ltr" className="mt-1 break-all text-start font-mono text-body-sm">{w.address}</div>
       </div>
 
       {w.tx_hash && (
         <Button variant="secondary" block icon={<Icon icon={LinkSquare02Icon} size={18} />} onClick={() => openExternal(`https://bscscan.com/tx/${w.tx_hash}`)}>
-          View on BscScan
+          {tr("View on BscScan")}
         </Button>
       )}
       {!ended && (
         <Button variant="secondary" size="lg" block onClick={onDone}>
-          {done ? "Done" : "Close"}
+          {done ? tr("Done") : tr("Close")}
         </Button>
       )}
-      {!done && !ended && <p className="text-center text-caption text-muted-foreground">Safe to close · tracked in Wallet</p>}
+      {!done && !ended && <p className="text-center text-caption text-muted-foreground">{tr("Safe to close · tracked in Wallet")}</p>}
     </div>
   );
 }

@@ -6,10 +6,10 @@ import { motion, useReducedMotion } from "motion/react";
 import { Alert02Icon, ArrowDown02Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import xeno from "@/assets/agents/XENO_robot_icon.svg";
 import type { Trader } from "@/lib/api/types";
-import { fmt } from "@/lib/money";
-import type { OrbMode } from "@/lib/trader";
-import { useOpenDeposit } from "@/components/deposit/deposit-sheet";
-import type { ProfitBubble } from "@/components/trader/profit-events";
+import { type OrbMode, roiText } from "@/lib/trader";
+import { t as tr } from "@/lib/i18n";
+import { useFundXeno } from "@/components/deposit/deposit-sheet";
+import { type ProfitBubble, type RecentBubble, useRecentProfitBubbles } from "@/components/trader/profit-events";
 import { useAgentStatus } from "@/components/trader/use-agent-status";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -26,16 +26,18 @@ const COLOR: Record<OrbMode, string> = {
 
 /**
  * Home's centrepiece: the agent as a big live circle saying what it's doing. It sweeps while it looks for entries and
- * pulses while trades are open; every real settled profit floats up as a bubble and pops. The money is on the card
- * below it. Tapping it opens the agent. It has no start/stop: the server runs the account.
+ * pulses while trades are open; every new settled profit floats up as a bubble and pops, and between them the account's
+ * own profits from the last 7 days rise again, each with its coin and age. The money is on the card below it.
+ * Tapping it opens the agent. It has no start/stop: the server runs the account.
  */
 export function AgentOrb({ t, bubbles, onBubbleDone }: { t: Trader; bubbles: ProfitBubble[]; onBubbleDone: (id: string) => void }) {
   const { s, title, short, mode, warn } = useAgentStatus(t);
   const reduce = useReducedMotion();
-  const openDeposit = useOpenDeposit();
+  const fundXeno = useFundXeno();
   const color = COLOR[mode];
   const live = !reduce && (mode === "scanning" || mode === "managing");
   const ring = (SIZE - DISC) / 2;
+  const recent = useRecentProfitBubbles(t.instanceId, !reduce && mode !== "alert", bubbles.length > 0);
 
   return (
     <section className="flex flex-col items-center">
@@ -74,7 +76,7 @@ export function AgentOrb({ t, bubbles, onBubbleDone }: { t: Trader; bubbles: Pro
 
         <Link
           href="/agents"
-          aria-label={`Agent: ${title}. Open the agent`}
+          aria-label={tr("Agent: {title}. Open the agent", { title })}
           // green only while it's working; paused or waiting reads neutral, so the centre never contradicts the ring
           className={`absolute grid place-items-center rounded-full text-white ring-1 ring-white/10 transition-transform duration-150 active:scale-[0.97] ${
             mode === "scanning" || mode === "managing" ? "hero-gradient shadow-[0_24px_60px_-24px_rgb(2_233_73/0.45)]" : "bg-surface-raised"
@@ -86,10 +88,17 @@ export function AgentOrb({ t, bubbles, onBubbleDone }: { t: Trader; bubbles: Pro
             <span className="mt-2 line-clamp-2 text-body font-semibold leading-tight">{title}</span>
             <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-caption text-white/80 tabular-nums">
               <span className="size-1.5 rounded-full" style={{ background: color }} aria-hidden />
-              {t.quota.openPositions}/{t.quota.maxOpenPositions} trades open
+              {tr("{progress} trades open", { progress: `${t.quota.openPositions}/${t.quota.maxOpenPositions}` })}
             </span>
           </span>
         </Link>
+
+        {/* the last 7 days' profits on repeat: decoration, so screen readers only hear the new ones below */}
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          {recent.bubbles.map((b) => (
+            <RecentBubbleView key={b.key} b={b} onDone={recent.done} />
+          ))}
+        </div>
 
         {/* real profits only, as they settle */}
         <div className="pointer-events-none absolute inset-0" role="status" aria-live="polite">
@@ -110,8 +119,8 @@ export function AgentOrb({ t, bubbles, onBubbleDone }: { t: Trader; bubbles: Pro
         </p>
       )}
       {s.cta === "deposit" && (
-        <Button size="sm" className="mt-3" icon={<Icon icon={ArrowDown02Icon} size={16} />} onClick={() => openDeposit()}>
-          Deposit to trade
+        <Button size="sm" className="mt-3" icon={<Icon icon={ArrowDown02Icon} size={16} />} onClick={() => fundXeno()}>
+          {tr("Deposit to trade")}
         </Button>
       )}
     </section>
@@ -122,7 +131,29 @@ export function AgentOrb({ t, bubbles, onBubbleDone }: { t: Trader; bubbles: Pro
 const drift = (id: string) => ([...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7) % 41) - 20;
 const SPARKS = Array.from({ length: 8 }, (_, k) => (k / 8) * Math.PI * 2);
 
-/** "+$1.23" rises out of the circle, then pops in a small burst. */
+/** "+2.40%" over "SOL · 3 hours ago" drifts up out of the circle to one side and fades: lighter than a new profit's bubble. */
+function RecentBubbleView({ b, onDone }: { b: RecentBubble; onDone: (key: string) => void }) {
+  return (
+    <motion.div
+      className="absolute left-1/2 top-[38%] -translate-x-1/2 -translate-y-1/2"
+      initial={{ y: 0, x: 0, opacity: 0, scale: 0.5 }}
+      animate={{ y: -150, x: b.side * (36 + (Math.abs(drift(b.key)) % 24)), opacity: [0, 1, 1, 0], scale: [0.5, 1, 1, 1.08] }}
+      transition={{ duration: 2.8, ease: [0.22, 0.8, 0.36, 1], opacity: { duration: 2.8, times: [0, 0.12, 0.78, 1] }, scale: { duration: 2.8, times: [0, 0.12, 0.78, 1] } }}
+      onAnimationComplete={() => onDone(b.key)}
+    >
+      <span className="flex flex-col items-center whitespace-nowrap rounded-2xl border border-primary/30 bg-surface/90 px-3 py-1.5 shadow-[0_8px_24px_-8px_rgb(2_233_73/0.45)] backdrop-blur-sm">
+        <span className="text-body-sm font-bold text-primary tabular-nums">
+          <bdi>{roiText(b.roi)}</bdi>
+        </span>
+        <span className="text-caption text-muted-foreground">
+          {b.coin} · {b.when}
+        </span>
+      </span>
+    </motion.div>
+  );
+}
+
+/** A new profit's ROI ("+2.40%") rises out of the circle, then pops in a small burst. */
 function Bubble({ b, onDone }: { b: ProfitBubble; onDone: (id: string) => void }) {
   const [popped, setPopped] = useState(false);
   useEffect(() => {
@@ -145,7 +176,7 @@ function Bubble({ b, onDone }: { b: ProfitBubble; onDone: (id: string) => void }
         animate={popped ? { scale: 1.4, opacity: 0 } : { scale: 1, opacity: 1 }}
         transition={{ duration: 0.22 }}
       >
-        +${fmt(b.amount)}
+        <bdi>{roiText(b.roiPercent)}</bdi>
       </motion.span>
       {popped && (
         <>
